@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 package generate
+
 import (
 	"fmt"
 	"go/types"
@@ -52,8 +53,9 @@ func Main(sourceTypeName string) error {
 
 // Use a simple regexp pattern to match tag values
 var (
-	structRequiredTagPattern = regexp.MustCompile(`required:"([^"]+)"`)
-	structPrivateTagPattern  = regexp.MustCompile(`private`)
+	structRequiredTagPattern  = regexp.MustCompile(`required:"([^"]+)"`)
+	structPrivateTagPattern   = regexp.MustCompile(`private`)
+	structGenGetterTagPattern = regexp.MustCompile(`gen-getter`)
 )
 
 func generate(goPackage, sourceTypeName string, structType *types.Struct) error {
@@ -71,49 +73,53 @@ func generate(goPackage, sourceTypeName string, structType *types.Struct) error 
 	var (
 		publicFields      []*types.Var
 		privateFields     []*types.Var
-		allFields         []*types.Var
+		genGetterFields   []*types.Var
 		publicParams      []Code
 		privateParams     []Code
 		allParams         []Code
 		publicValidations []Code
 	)
 
-	// 2. iterate over struct fileds and populate those variables
+	// 2. iterate over struct fields and populate those variables
 	for i := 0; i < structType.NumFields(); i++ {
 		field := structType.Field(i)
 		tagValue := structType.Tag(i)
 
+		// 2.1 match default getter creation to fields
+		genGetterMatchs := structGenGetterTagPattern.FindStringSubmatch(tagValue)
+		if genGetterMatchs != nil {
+			genGetterFields = append(genGetterFields, field)
+		}
+
+		// 2.2 separate private and public fields
 		var private bool
 		privateMatchs := structPrivateTagPattern.FindStringSubmatch(tagValue)
 		if privateMatchs != nil {
-    			private = true
-			// ... 2a. Build private params and fields
+			private = true
 			privateParams = append(privateParams, Id(field.Name()).Id(field.Type().String()))
 			privateFields = append(privateFields, field)
-			continue
+		} else {
+			publicParams = append(publicParams, Id(field.Name()).Id(field.Type().String()))
+			publicFields = append(publicFields, field)
 		}
-		// ... 2c. Build params and fields
-		publicParams = append(publicParams, Id(field.Name()).Id(field.Type().String()))
-		publicFields = append(publicFields, field)
 
+		// 2.2 generate required validation code (error if also private)
 		requiredMatches := structRequiredTagPattern.FindStringSubmatch(tagValue)
 		if requiredMatches != nil {
 			if private {
 				return fmt.Errorf("private field %s cannot be required", field.Name())
 			}
-			// ... 2b. extract the error message
 			errMsg := requiredMatches[1]
 
-			// ... 2d. Build "if <field> == nil { return nil, errors.New("<errMsg>") }"
+			// ... build "if <field> == nil { return nil, errors.New("<errMsg>") }"
 			publicValidations = append(publicValidations,
 				If(Id(field.Name()).Op("==").Nil()).Block(
-					Return(Nil(),Qual("errors", "New").Call(Lit(errMsg))),
+					Return(Nil(), Qual("errors", "New").Call(Lit(errMsg))),
 				),
 			)
 		}
 	}
 	allParams = append(publicParams, privateParams...)
-	allFields = append(publicFields, privateFields...)
 
 	// 3. assemble methods ...
 
@@ -121,15 +127,14 @@ func generate(goPackage, sourceTypeName string, structType *types.Struct) error 
 
 	// -- Add New() constructor
 	f.Commentf("New returns a guaranteed-to-be-valid %s or an error", sourceTypeName)
-	f.Func(
-	).Id("New").Params(
+	f.Func().Id("New").Params(
 		publicParams...,
-	).Op("*").Id(sourceTypeName).Err().BlockFunc(func(g *Group){
+	).Op("*").Id(sourceTypeName).Err().BlockFunc(func(g *Group) {
 		for _, code := range publicValidations {
 			g.Add(code)
 		}
 		g.Return(Op("&").Id(sourceTypeName).Values(
-			DictFunc(func(d Dict){
+			DictFunc(func(d Dict) {
 				for _, fld := range publicFields {
 					d[Id(fld.Name())] = Id(fld.Name())
 				}
@@ -139,15 +144,14 @@ func generate(goPackage, sourceTypeName string, structType *types.Struct) error 
 
 	// -- Add MustNew() constructor
 	f.Commentf("MustNew returns a guaranteed-to-be-valid %s or panics", sourceTypeName)
-	f.Func(
-	).Id("MustNew").Params(
+	f.Func().Id("MustNew").Params(
 		publicParams...,
 	).Parens(
 		Op("*").Id(sourceTypeName),
 	).Block(
-		Id(sF).Err().Op(":=").Id("New").CallFunc(func(g *Group){
-			for _, fld := range publicFields{
-    				g.Id(fld.Name())
+		Id(sF).Err().Op(":=").Id("New").CallFunc(func(g *Group) {
+			for _, fld := range publicFields {
+				g.Id(fld.Name())
 			}
 		}),
 		If(Err().Op("!=").Nil()).Block(
@@ -165,13 +169,12 @@ func generate(goPackage, sourceTypeName string, structType *types.Struct) error 
 	f.Comment("")
 	f.Comment("Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY")
 	f.Comment("Reason: This method initializes private state, so you could corrupt the domain.")
-	f.Func(
-	).Id("UnmarshalFromRepository").Params(
+	f.Func().Id("UnmarshalFromRepository").Params(
 		allParams...,
-	).Op("*").Id(sourceTypeName).Err().BlockFunc(func(g *Group){
-		g.Id(sF).Op(":=").Id("MustNew").CallFunc(func(g *Group){
-			for _, fld := range publicFields{
-    				g.Id(fld.Name())
+	).Op("*").Id(sourceTypeName).Err().BlockFunc(func(g *Group) {
+		g.Id(sF).Op(":=").Id("MustNew").CallFunc(func(g *Group) {
+			for _, fld := range publicFields {
+				g.Id(fld.Name())
 			}
 		})
 		for _, fld := range privateFields {
@@ -182,16 +185,15 @@ func generate(goPackage, sourceTypeName string, structType *types.Struct) error 
 
 	f.Line()
 	f.Comment("Getters ...")
-	for _, fld := range allFields {
+	for _, fld := range genGetterFields {
 		fN := strings.Title(fld.Name())
 		f.Commentf("%s returns %s value", fN, fld.Name())
-    		f.Func().Params(
+		f.Func().Params(
 			Id(sF), Id(sourceTypeName),
 		).Id(fN).Op("*").Id(fld.Type().String()).Block(
 			Return(Id(sF).Dot(fld.Name()).Id(fld.Name())),
 		)
 	}
-
 
 	// Build the target file name
 	goFile := os.Getenv("GOFILE")
@@ -207,7 +209,7 @@ func loadPackage(path string) (*packages.Package, error) {
 	cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedImports}
 	pkgs, err := packages.Load(cfg, path)
 	if err != nil {
-    		return nil, fmt.Errorf("loading packages for inspection: %v", err)
+		return nil, fmt.Errorf("loading packages for inspection: %v", err)
 	}
 	if packages.PrintErrors(pkgs) > 0 {
 		os.Exit(1)
@@ -219,4 +221,3 @@ func loadPackage(path string) (*packages.Package, error) {
 func shortForm(typeName string) string {
 	return strings.ToLower(string(typeName[0]))
 }
-
