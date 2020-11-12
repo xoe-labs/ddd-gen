@@ -40,17 +40,36 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ddd-domain-gen",
-	Short: "Generates idiomatic go code for a DDD domain based on annotations",
-	Long: `Gennerates idiomatic go code for a DDD domain based on struct annotations.
-Annotations:
+	Short: "Generates idiomatic go code for a DDD domain",
+	Long: `Generates idiomatic go code for a DDD domain based on struct field annotations.
+
+  Available Annotations:
     gen-getter               - generate default getter: no special domain (e.g. access) logic for reads
-    private                  - this is private state, it can only be initialized directly from the reopsitory state
-    required:"error message" - if not present in the constructor, an error with the provided message will be returned`,
-	Example: `type Account struct {
-    uuid    *string ` + "`" + `gen-getter,required:"field uuid is missing"` + "`" + `
-    holder  *string ` + "`" + `gen-getter` + "`" + `
-    balance *int64  ` + "`" + `private` + "`" + ` // reading the balance abides by domain logic
-}`,
+    private                  - this is private state, it can only be initialized directly from the repository
+    required:"error message" - if not present in the constructor, an error with the provided message will be returned
+
+  Expected Folder Structure:
+    ./domain
+    ├── livecall
+    │   ├── livecall.go
+    │   └── livecall_gen.go
+    ├── party
+    │   ├── party.go
+    │   └── party_gen.go
+    └── ...`,
+	Example: `  Command:
+    //go:generate go run github.com/xoe-labs/go-generators/ddd-domain-gen --type YOURTYPE
+    ddd-domain-gen -t YOURTYPE
+
+  Code:
+    type Account struct {
+        uuid    *string ` + "`" + `gen-getter,required:"field uuid is missing"` + "`" + `
+        holder  *string ` + "`" + `gen-getter` + "`" + `
+        balance *int64  ` + "`" + `private` + "`" + ` // reading the balance abides by domain logic
+    }
+
+    Required fields must be pointers for validation to work. So just use pointers everywhere.
+`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return generate.Main(sourceType)
 	},
