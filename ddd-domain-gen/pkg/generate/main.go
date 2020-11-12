@@ -69,7 +69,7 @@ func generate(goPackage, sourceTypeName string, structType *types.Struct) error 
 	f.Line()
 	f.Comment("Generators ...")
 
-	// 1. define code regions variables for the following methods
+	// 1. define code region variables
 	var (
 		publicFields      []*types.Var
 		privateFields     []*types.Var
