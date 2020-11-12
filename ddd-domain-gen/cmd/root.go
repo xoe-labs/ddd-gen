@@ -44,9 +44,11 @@ var rootCmd = &cobra.Command{
 	Long: `Generates idiomatic go code for a DDD domain based on struct field annotations.
 
   Available Annotations:
-    gen-getter               - generate default getter: no special domain (e.g. access) logic for reads
-    private                  - this is private state, it can only be initialized directly from the repository
-    required:"error message" - if not present in the constructor, an error with the provided message will be returned
+    Key "gen"
+      getter              - generate default getter: no special domain (e.g. access) logic for reads
+    Key "ddd"
+      private             - this is private state, it can only be initialized directly from the repository
+      required'error msg' - if not present in the constructor, an error with the provided message will be returned
 
   Expected Folder Structure:
     ./domain
@@ -59,13 +61,12 @@ var rootCmd = &cobra.Command{
     └── ...`,
 	Example: `  Command:
     //go:generate go run github.com/xoe-labs/go-generators/ddd-domain-gen --type YOURTYPE
-    ddd-domain-gen -t YOURTYPE
 
   Code:
     type Account struct {
-        uuid    *string ` + "`" + `gen-getter,required:"field uuid is missing"` + "`" + `
-        holder  *string ` + "`" + `gen-getter` + "`" + `
-        balance *int64  ` + "`" + `private` + "`" + ` // read via domain logic: don't generate default getter
+        uuid    *string ` + "`" + `gen:"getter" ddd:"required'field uuid is missing'"` + "`" + `
+        holder  *string ` + "`" + `gen:"getter"` + "`" + `
+        balance *int64  ` + "`" + `ddd:"private"` + "`" + ` // read via domain logic: don't generate default getter
     }
 
     Required fields must be pointers for validation to work. So just use pointers everywhere.
