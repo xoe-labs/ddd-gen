@@ -127,10 +127,14 @@ func generate(goPackage, targetFilename, sourceTypeName string, structType *type
 			requiredMatches = structRequiredTagPattern.FindStringSubmatch(structTagDDDKeyValue)
 		}
 		if private {
-			privateParams = append(privateParams, Id(field.Name()).Id(field.Type().String()))
+			privateParams = append(privateParams, Id(field.Name()).Add(
+				getQualifiedType(field.Type().String()),
+			))
 			privateFields = append(privateFields, field)
 		} else {
-			publicParams = append(publicParams, Id(field.Name()).Id(field.Type().String()))
+			publicParams = append(publicParams, Id(field.Name()).Add(
+				getQualifiedType(field.Type().String()),
+			))
 			publicFields = append(publicFields, field)
 		}
 
@@ -223,7 +227,9 @@ func generate(goPackage, targetFilename, sourceTypeName string, structType *type
 		f.Commentf("%s returns %s value", fN, fld.Name())
 		f.Func().Params(
 			Id(sF).Op("*").Id(sourceTypeName),
-		).Id(fN).Params().Id(fld.Type().String()).Block(
+		).Id(fN).Params().Add(
+			getQualifiedType(fld.Type().String()),
+		).Block(
 			Return(Id(sF).Dot(fld.Name())),
 		)
 	}
@@ -247,4 +253,19 @@ func loadPackage(path string) (*packages.Package, error) {
 
 func shortForm(typeName string) string {
 	return strings.ToLower(string(typeName[0]))
+}
+
+func getQualifiedType(s string) *Statement {
+	frst := ""
+	last := s[strings.LastIndex(s, ".")+1:]
+	if last != s {
+		if string(s[0]) == "*" {
+			// remove first character (* - ptr)
+			frst = s[1:strings.LastIndex(s, ".")]
+			return Op("*").Qual(frst, last)
+		}
+		frst = s[:strings.LastIndex(s, ".")]
+	}
+	return Qual(frst, last)
+
 }
