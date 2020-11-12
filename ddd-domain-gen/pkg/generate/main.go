@@ -12,24 +12,33 @@ import (
 	"regexp"
 	"strings"
 
+	// "log"
+
 	. "github.com/dave/jennifer/jen"
 	"golang.org/x/tools/go/packages"
+)
+
+var (
+	goFile         string
+	goPackagePath  string
+	goPackage      string
+	targetFilename string
 )
 
 func Main(sourceTypeName string) error {
 
 	// Get the package of the file with go:generate comment
-	goPackage := os.Getenv("GOPACKAGE")
-	path, err := os.Getwd()
+	goPackage = os.Getenv("GOPACKAGE")
+	goPackagePath, err := os.Getwd()
 	if err != nil {
 		return err
 	}
 
 	// Build the target file name
-	goFile := os.Getenv("GOFILE")
+	goFile = os.Getenv("GOFILE")
 	ext := filepath.Ext(goFile)
 	baseFilename := goFile[0 : len(goFile)-len(ext)]
-	targetFilename := baseFilename + "_gen.go"
+	targetFilename = baseFilename + "_gen.go"
 
 	// Remove existing target file (before loading the package)
 	if _, err := os.Stat(targetFilename); err == nil {
@@ -39,7 +48,7 @@ func Main(sourceTypeName string) error {
 	}
 
 	// Inspect package and use type checker to infer imported types
-	pkg, err := loadPackage(path)
+	pkg, err := loadPackage(goPackagePath)
 	if err != nil {
 		return err
 	}
@@ -62,7 +71,7 @@ func Main(sourceTypeName string) error {
 	}
 
 	// Generate code using jennifer
-	err = generate(goPackage, targetFilename, sourceTypeName, structType)
+	err = generate(sourceTypeName, structType)
 	if err != nil {
 		return err
 	}
@@ -82,7 +91,7 @@ var (
 	structGenGetterTagPattern = regexp.MustCompile(`getter`)
 )
 
-func generate(goPackage, targetFilename, sourceTypeName string, structType *types.Struct) error {
+func generate(sourceTypeName string, structType *types.Struct) error {
 
 	// Start a new file in this package
 	// return fmt.Errorf(goPackage)
@@ -128,12 +137,12 @@ func generate(goPackage, targetFilename, sourceTypeName string, structType *type
 		}
 		if private {
 			privateParams = append(privateParams, Id(field.Name()).Add(
-				getQualifiedType(field.Type().String()),
+				getQualifiedType(field.Type().String(), goPackage),
 			))
 			privateFields = append(privateFields, field)
 		} else {
 			publicParams = append(publicParams, Id(field.Name()).Add(
-				getQualifiedType(field.Type().String()),
+				getQualifiedType(field.Type().String(), goPackage),
 			))
 			publicFields = append(publicFields, field)
 		}
@@ -228,7 +237,7 @@ func generate(goPackage, targetFilename, sourceTypeName string, structType *type
 		f.Func().Params(
 			Id(sF).Op("*").Id(sourceTypeName),
 		).Id(fN).Params().Add(
-			getQualifiedType(fld.Type().String()),
+			getQualifiedType(fld.Type().String(), goPackage),
 		).Block(
 			Return(Id(sF).Dot(fld.Name())),
 		)
@@ -255,17 +264,32 @@ func shortForm(typeName string) string {
 	return strings.ToLower(string(typeName[0]))
 }
 
-func getQualifiedType(s string) *Statement {
+func getQualifiedType(s, goPackage string) *Statement {
+	isPtr := isPointer(s)
+	if isPtr {
+		s = s[1:]
+	}
 	frst := ""
 	last := s[strings.LastIndex(s, ".")+1:]
 	if last != s {
-		if string(s[0]) == "*" {
-			// remove first character (* - ptr)
-			frst = s[1:strings.LastIndex(s, ".")]
-			return Op("*").Qual(frst, last)
-		}
 		frst = s[:strings.LastIndex(s, ".")]
 	}
+	if isQualifiedImportSamePackage(frst, goPackage) {
+		if isPtr {
+			return Op("*").Id(last)
+		}
+		return Id(last)
+	}
+	if isPtr {
+		return Op("*").Qual(frst, last)
+	}
 	return Qual(frst, last)
+}
 
+func isQualifiedImportSamePackage(s, p string) bool {
+	return strings.HasSuffix(s, p)
+}
+
+func isPointer(s string) bool {
+	return strings.HasPrefix(s, "*")
 }

@@ -9,23 +9,27 @@ import (
 // Generators ...
 
 // New returns a guaranteed-to-be-valid Holder or an error
-func New(uuid *string, name *string, bday *time.Time) (*Holder, error) {
+func New(uuid *string, name *string, bday *time.Time, hTyp *HolderType) (*Holder, error) {
 	if uuid == nil {
 		return nil, errors.New("field uuid is missing")
 	}
 	if name == nil {
 		return nil, errors.New("field name is missing")
 	}
+	if hTyp == nil {
+		return nil, errors.New("filed folder type is missing")
+	}
 	return &Holder{
 		bday: bday,
+		hTyp: hTyp,
 		name: name,
 		uuid: uuid,
 	}, nil
 }
 
 // MustNew returns a guaranteed-to-be-valid Holder or panics
-func MustNew(uuid *string, name *string, bday *time.Time) *Holder {
-	h, err := New(uuid, name, bday)
+func MustNew(uuid *string, name *string, bday *time.Time, hTyp *HolderType) *Holder {
+	h, err := New(uuid, name, bday, hTyp)
 	if err != nil {
 		panic(err)
 	}
@@ -39,8 +43,8 @@ func MustNew(uuid *string, name *string, bday *time.Time) *Holder {
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromRepository(uuid *string, name *string, bday *time.Time) *Holder {
-	h := MustNew(uuid, name, bday)
+func UnmarshalFromRepository(uuid *string, name *string, bday *time.Time, hTyp *HolderType) *Holder {
+	h := MustNew(uuid, name, bday, hTyp)
 	return h
 }
 
@@ -59,4 +63,9 @@ func (h *Holder) Name() *string {
 // Bday returns bday value
 func (h *Holder) Bday() *time.Time {
 	return h.bday
+}
+
+// HTyp returns hTyp value
+func (h *Holder) HTyp() *HolderType {
+	return h.hTyp
 }
