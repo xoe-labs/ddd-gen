@@ -2,6 +2,7 @@ package holder
 
 import (
 	"time"
+	"fmt"
 )
 
 type HolderType struct{ s string }
@@ -14,10 +15,17 @@ var (
 )
 
 
-//go:generate go run ../../main.go -t Holder
+//go:generate go run ../../main.go -t Holder -v validate
 type Holder struct {
-	uuid *string     `gen:"getter" ddd:"required'field uuid is missing'"`
-	name *string     `gen:"getter" ddd:"required'field name is missing'"`
-	bday *time.Time  `gen:"getter"`
-	hTyp *HolderType `gen:"getter" ddd:"required'filed folder type is missing'"`
+	uuid string     `ddd:"required'field uuid is empty'"`
+	name string     `ddd:"required'field name is empty'"`
+	bday time.Time
+	hTyp HolderType `ddd:"required'filed folder type is empty'"`
+}
+
+func (h Holder) validate() error {
+	if h.uuid == h.name {
+		return fmt.Errorf("uuid euqals name")
+	}
+	return nil
 }

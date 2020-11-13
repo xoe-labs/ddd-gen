@@ -4,27 +4,29 @@ package account
 import (
 	"errors"
 	holder "github.com/xoe-labs/go-generators/ddd-domain-gen/test-domain/holder"
+	"reflect"
 )
 
 // Generators ...
 
 // New returns a guaranteed-to-be-valid Account or an error
-func New(uuid *string, holder *holder.Holder, address *string) (*Account, error) {
-	if uuid == nil {
-		return nil, errors.New("field uuid is missing")
+func New(uuid string, holder holder.Holder, address string) (*Account, error) {
+	if reflect.ValueOf(uuid).IsZero() {
+		return nil, errors.New("field uuid is empty")
 	}
-	if holder == nil {
-		return nil, errors.New("field holder is missing")
+	if reflect.ValueOf(holder).IsZero() {
+		return nil, errors.New("field holder is empty")
 	}
-	return &Account{
+	a := &Account{
 		address: address,
 		holder:  holder,
 		uuid:    uuid,
-	}, nil
+	}
+	return a, nil
 }
 
 // MustNew returns a guaranteed-to-be-valid Account or panics
-func MustNew(uuid *string, holder *holder.Holder, address *string) *Account {
+func MustNew(uuid string, holder holder.Holder, address string) *Account {
 	a, err := New(uuid, holder, address)
 	if err != nil {
 		panic(err)
@@ -39,7 +41,7 @@ func MustNew(uuid *string, holder *holder.Holder, address *string) *Account {
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromRepository(uuid *string, holder *holder.Holder, address *string, balance *int64, values *[]int64) *Account {
+func UnmarshalFromRepository(uuid string, holder holder.Holder, address string, balance int64, values []int64) *Account {
 	a := MustNew(uuid, holder, address)
 	a.balance = balance
 	a.values = values

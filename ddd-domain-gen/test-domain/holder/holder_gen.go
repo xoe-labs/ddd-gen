@@ -3,32 +3,37 @@ package holder
 
 import (
 	"errors"
+	"reflect"
 	"time"
 )
 
 // Generators ...
 
 // New returns a guaranteed-to-be-valid Holder or an error
-func New(uuid *string, name *string, bday *time.Time, hTyp *HolderType) (*Holder, error) {
-	if uuid == nil {
-		return nil, errors.New("field uuid is missing")
+func New(uuid string, name string, bday time.Time, hTyp HolderType) (*Holder, error) {
+	if reflect.ValueOf(uuid).IsZero() {
+		return nil, errors.New("field uuid is empty")
 	}
-	if name == nil {
-		return nil, errors.New("field name is missing")
+	if reflect.ValueOf(name).IsZero() {
+		return nil, errors.New("field name is empty")
 	}
-	if hTyp == nil {
-		return nil, errors.New("filed folder type is missing")
+	if reflect.ValueOf(hTyp).IsZero() {
+		return nil, errors.New("filed folder type is empty")
 	}
-	return &Holder{
+	h := &Holder{
 		bday: bday,
 		hTyp: hTyp,
 		name: name,
 		uuid: uuid,
-	}, nil
+	}
+	if err := h.validate(); err != nil {
+		return nil, err
+	}
+	return h, nil
 }
 
 // MustNew returns a guaranteed-to-be-valid Holder or panics
-func MustNew(uuid *string, name *string, bday *time.Time, hTyp *HolderType) *Holder {
+func MustNew(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
 	h, err := New(uuid, name, bday, hTyp)
 	if err != nil {
 		panic(err)
@@ -43,7 +48,7 @@ func MustNew(uuid *string, name *string, bday *time.Time, hTyp *HolderType) *Hol
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromRepository(uuid *string, name *string, bday *time.Time, hTyp *HolderType) *Holder {
+func UnmarshalFromRepository(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
 	h := MustNew(uuid, name, bday, hTyp)
 	return h
 }

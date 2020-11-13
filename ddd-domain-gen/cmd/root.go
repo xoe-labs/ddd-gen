@@ -33,8 +33,9 @@ import (
 )
 
 var (
-	cfgFile    string
-	sourceType string
+	cfgFile         string
+	sourceType      string
+	validatorMethod string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -62,15 +63,17 @@ var rootCmd = &cobra.Command{
 
   Code:
     type Account struct {
-        uuid    *string ` + "`" + `ddd:"required'field uuid is missing'"` + "`" + `
-        holder  *string
-        balance *int64  ` + "`" + `ddd:"private"` + "`" + `
+        uuid    string ` + "`" + `ddd:"required'field uuid is empty'"` + "`" + `
+        holder  string
+        balance int64  ` + "`" + `ddd:"private"` + "`" + `
     }
 
-    Required fields must be pointers for validation to work. So just use pointers everywhere.
+    Important: expects non-pointer type fields.
+    Reason: pointers can inadvertedly corrupt your domain.
+    Example: a caller can mutate the value.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return generate.Main(sourceType)
+		return generate.Main(sourceType, validatorMethod)
 	},
 }
 
@@ -96,6 +99,7 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().StringVarP(&sourceType, "type", "t", "", "The source type for which to generate the code")
 	rootCmd.MarkFlagRequired("type")
+	rootCmd.Flags().StringVarP(&validatorMethod, "validator", "v", "", "The validator method that constructors should reach out to")
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -25,7 +25,7 @@ var (
 	targetFilename string
 )
 
-func Main(sourceTypeName string) error {
+func Main(sourceTypeName, validatorMethod string) error {
 
 	// Get the package of the file with go:generate comment
 	goPackage = os.Getenv("GOPACKAGE")
@@ -71,7 +71,7 @@ func Main(sourceTypeName string) error {
 	}
 
 	// Generate code using jennifer
-	err = generate(sourceTypeName, structType)
+	err = generate(sourceTypeName, validatorMethod, structType)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ var (
 	// structGenGetterTagPattern = regexp.MustCompile(`getter`) // use https://github.com/phelmkamp/metatag instead
 )
 
-func generate(sourceTypeName string, structType *types.Struct) error {
+func generate(sourceTypeName, validatorMethod string, structType *types.Struct) error {
 
 	// Start a new file in this package
 	// return fmt.Errorf(goPackage)
@@ -118,6 +118,10 @@ func generate(sourceTypeName string, structType *types.Struct) error {
 	for i := 0; i < structType.NumFields(); i++ {
 		field := structType.Field(i)
 		tag := reflect.StructTag(structType.Tag(i))
+		if isPointer(field.Type().String()) {
+			return fmt.Errorf("%s type is a pointer - can evade validation", field.Name())
+		}
+
 
 		// 2.1 match default getter creation to fields // use https://github.com/phelmkamp/metatag instead
 		// if structTagGenKeyValue, ok := tag.Lookup(structTagGenKey); ok {
@@ -156,7 +160,7 @@ func generate(sourceTypeName string, structType *types.Struct) error {
 
 			// ... build "if <field> == nil { return nil, errors.New("<errMsg>") }"
 			publicValidations = append(publicValidations,
-				If(Id(field.Name()).Op("==").Nil()).Block(
+				If(Qual("reflect", "ValueOf").Call(Id(field.Name()))).Dot("IsZero").Call().Block(
 					Return(Nil(), Qual("errors", "New").Call(Lit(errMsg))),
 				),
 			)
@@ -179,13 +183,19 @@ func generate(sourceTypeName string, structType *types.Struct) error {
 		for _, code := range publicValidations {
 			g.Add(code)
 		}
-		g.Return(Op("&").Id(sourceTypeName).Values(
+		g.Id(sF).Op(":=").Op("&").Id(sourceTypeName).Values(
 			DictFunc(func(d Dict) {
 				for _, fld := range publicFields {
 					d[Id(fld.Name())] = Id(fld.Name())
 				}
 			}),
-		), Nil())
+		)
+		if validatorMethod != "" {
+			g.If(Err().Op(":=").Id(sF).Dot(validatorMethod).Call()).Op(";").Err().Op("!=").Nil().Block(
+				Return(Nil(),Err()),
+			)
+		}
+		g.Return(Id(sF), Nil())
 	})
 
 	// -- Add MustNew() constructor
@@ -265,23 +275,13 @@ func shortForm(typeName string) string {
 }
 
 func getQualifiedType(s, goPackage string) *Statement {
-	isPtr := isPointer(s)
-	if isPtr {
-		s = s[1:]
-	}
 	frst := ""
 	last := s[strings.LastIndex(s, ".")+1:]
 	if last != s {
 		frst = s[:strings.LastIndex(s, ".")]
 	}
 	if isQualifiedImportSamePackage(frst, goPackage) {
-		if isPtr {
-			return Op("*").Id(last)
-		}
 		return Id(last)
-	}
-	if isPtr {
-		return Op("*").Qual(frst, last)
 	}
 	return Qual(frst, last)
 }
