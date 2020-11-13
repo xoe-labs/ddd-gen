@@ -45,25 +45,3 @@ func UnmarshalFromRepository(uuid *string, holder *holder.Holder, address *strin
 	a.values = values
 	return a
 }
-
-// Getters ...
-
-// Uuid returns uuid value
-func (a *Account) Uuid() *string {
-	return a.uuid
-}
-
-// Holder returns holder value
-func (a *Account) Holder() *holder.Holder {
-	return a.holder
-}
-
-// Address returns address value
-func (a *Account) Address() *string {
-	return a.address
-}
-
-// Values returns values value
-func (a *Account) Values() *[]int64 {
-	return a.values
-}

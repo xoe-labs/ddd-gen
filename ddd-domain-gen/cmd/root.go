@@ -44,8 +44,6 @@ var rootCmd = &cobra.Command{
 	Long: `Generates idiomatic go code for a DDD domain based on struct field annotations.
 
   Available Annotations:
-    Key "gen"
-      getter              - generate default getter: no special domain (e.g. access) logic for reads
     Key "ddd"
       private             - this is private state, it can only be initialized directly from the repository
       required'error msg' - if not present in the constructor, an error with the provided message will be returned
@@ -64,9 +62,9 @@ var rootCmd = &cobra.Command{
 
   Code:
     type Account struct {
-        uuid    *string ` + "`" + `gen:"getter" ddd:"required'field uuid is missing'"` + "`" + `
-        holder  *string ` + "`" + `gen:"getter"` + "`" + `
-        balance *int64  ` + "`" + `ddd:"private"` + "`" + ` // read via domain logic: don't generate default getter
+        uuid    *string ` + "`" + `ddd:"required'field uuid is missing'"` + "`" + `
+        holder  *string
+        balance *int64  ` + "`" + `ddd:"private"` + "`" + `
     }
 
     Required fields must be pointers for validation to work. So just use pointers everywhere.

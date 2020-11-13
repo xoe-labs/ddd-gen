@@ -47,25 +47,3 @@ func UnmarshalFromRepository(uuid *string, name *string, bday *time.Time, hTyp *
 	h := MustNew(uuid, name, bday, hTyp)
 	return h
 }
-
-// Getters ...
-
-// Uuid returns uuid value
-func (h *Holder) Uuid() *string {
-	return h.uuid
-}
-
-// Name returns name value
-func (h *Holder) Name() *string {
-	return h.name
-}
-
-// Bday returns bday value
-func (h *Holder) Bday() *time.Time {
-	return h.bday
-}
-
-// HTyp returns hTyp value
-func (h *Holder) HTyp() *HolderType {
-	return h.hTyp
-}

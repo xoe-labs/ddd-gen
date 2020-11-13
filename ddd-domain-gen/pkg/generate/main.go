@@ -80,7 +80,7 @@ func Main(sourceTypeName string) error {
 
 // StructTag Key
 var (
-	structTagGenKey = "gen"
+	// structTagGenKey = "gen" // use https://github.com/phelmkamp/metatag instead
 	structTagDDDKey = "ddd"
 )
 
@@ -88,7 +88,7 @@ var (
 var (
 	structRequiredTagPattern  = regexp.MustCompile(`required'([^']+)'`)
 	structPrivateTagPattern   = regexp.MustCompile(`private`)
-	structGenGetterTagPattern = regexp.MustCompile(`getter`)
+	// structGenGetterTagPattern = regexp.MustCompile(`getter`) // use https://github.com/phelmkamp/metatag instead
 )
 
 func generate(sourceTypeName string, structType *types.Struct) error {
@@ -107,7 +107,7 @@ func generate(sourceTypeName string, structType *types.Struct) error {
 	var (
 		publicFields      []*types.Var
 		privateFields     []*types.Var
-		genGetterFields   []*types.Var
+		// genGetterFields   []*types.Var
 		publicParams      []Code
 		privateParams     []Code
 		allParams         []Code
@@ -119,12 +119,12 @@ func generate(sourceTypeName string, structType *types.Struct) error {
 		field := structType.Field(i)
 		tag := reflect.StructTag(structType.Tag(i))
 
-		// 2.1 match default getter creation to fields
-		if structTagGenKeyValue, ok := tag.Lookup(structTagGenKey); ok {
-			if matches := structGenGetterTagPattern.FindStringSubmatch(structTagGenKeyValue); matches != nil {
-				genGetterFields = append(genGetterFields, field)
-			}
-		}
+		// 2.1 match default getter creation to fields // use https://github.com/phelmkamp/metatag instead
+		// if structTagGenKeyValue, ok := tag.Lookup(structTagGenKey); ok {
+		// 	if matches := structGenGetterTagPattern.FindStringSubmatch(structTagGenKeyValue); matches != nil {
+		// 		genGetterFields = append(genGetterFields, field)
+		// 	}
+		// }
 
 		// 2.2 separate private and public fields
 		var private bool
@@ -229,19 +229,19 @@ func generate(sourceTypeName string, structType *types.Struct) error {
 		g.Return(Id(sF))
 	})
 
-	f.Comment("Getters ...")
-	f.Line()
-	for _, fld := range genGetterFields {
-		fN := strings.Title(fld.Name())
-		f.Commentf("%s returns %s value", fN, fld.Name())
-		f.Func().Params(
-			Id(sF).Op("*").Id(sourceTypeName),
-		).Id(fN).Params().Add(
-			getQualifiedType(fld.Type().String(), goPackage),
-		).Block(
-			Return(Id(sF).Dot(fld.Name())),
-		)
-	}
+	// f.Comment("Getters ...") // use https://github.com/phelmkamp/metatag instead
+	// f.Line()
+	// for _, fld := range genGetterFields {
+	// 	fN := strings.Title(fld.Name())
+	// 	f.Commentf("%s returns %s value", fN, fld.Name())
+	// 	f.Func().Params(
+	// 		Id(sF).Op("*").Id(sourceTypeName),
+	// 	).Id(fN).Params().Add(
+	// 		getQualifiedType(fld.Type().String(), goPackage),
+	// 	).Block(
+	// 		Return(Id(sF).Dot(fld.Name())),
+	// 	)
+	// }
 
 	// Write generated file
 	return f.Save(targetFilename)
