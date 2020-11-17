@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	// "log"
+	"log"
 
 	. "github.com/dave/jennifer/jen"
 	"golang.org/x/tools/go/packages"
@@ -29,7 +29,7 @@ func Main(sourceTypeName, validatorMethod string) error {
 
 	// Get the package of the file with go:generate comment
 	goPackage = os.Getenv("GOPACKAGE")
-	goPackagePath, err := os.Getwd()
+	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
@@ -48,10 +48,12 @@ func Main(sourceTypeName, validatorMethod string) error {
 	}
 
 	// Inspect package and use type checker to infer imported types
-	pkg, err := loadPackage(goPackagePath)
+	pkg, err := loadPackage(cwd)
 	if err != nil {
 		return err
 	}
+
+	goPackagePath = pkg.Types.Path()
 
 	// Lookup the given source type name in the package declarations
 	obj := pkg.Types.Scope().Lookup(sourceTypeName)
@@ -71,7 +73,7 @@ func Main(sourceTypeName, validatorMethod string) error {
 	}
 
 	// Generate code using jennifer
-	err = generate(sourceTypeName, validatorMethod, structType)
+	err = generate(sourceTypeName, validatorMethod, goPackagePath, structType)
 	if err != nil {
 		return err
 	}
@@ -86,12 +88,13 @@ var (
 
 // A simple regexp pattern to match tag values
 var (
-	structRequiredTagPattern  = regexp.MustCompile(`required'([^']+)'`)
-	structPrivateTagPattern   = regexp.MustCompile(`private`)
+	structRequiredTagPattern = regexp.MustCompile(`required'([^']+)'`)
+	structPrivateTagPattern  = regexp.MustCompile(`private`)
 	// structGenGetterTagPattern = regexp.MustCompile(`getter`) // use https://github.com/phelmkamp/metatag instead
 )
 
-func generate(sourceTypeName, validatorMethod string, structType *types.Struct) error {
+func generate(sourceTypeName, validatorMethod, goPackagePath string, structType *types.Struct) error {
+	log.Printf("Generating code for: %s.%s\n", goPackagePath, sourceTypeName)
 
 	// Start a new file in this package
 	// return fmt.Errorf(goPackage)
@@ -105,8 +108,8 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 
 	// 1. define code region variables
 	var (
-		publicFields      []*types.Var
-		privateFields     []*types.Var
+		publicFields  []string
+		privateFields []string
 		// genGetterFields   []*types.Var
 		publicParams      []Code
 		privateParams     []Code
@@ -118,10 +121,9 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 	for i := 0; i < structType.NumFields(); i++ {
 		field := structType.Field(i)
 		tag := reflect.StructTag(structType.Tag(i))
-		if isPointer(field.Type().String()) {
+		if _, ok := field.Type().(*types.Pointer); ok {
 			return fmt.Errorf("%s type is a pointer - can evade validation", field.Name())
 		}
-
 
 		// 2.1 match default getter creation to fields // use https://github.com/phelmkamp/metatag instead
 		// if structTagGenKeyValue, ok := tag.Lookup(structTagGenKey); ok {
@@ -139,16 +141,13 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 			}
 			requiredMatches = structRequiredTagPattern.FindStringSubmatch(structTagDDDKeyValue)
 		}
+		qual := getQualifiedJenType(field.Type(), field.Pkg())
 		if private {
-			privateParams = append(privateParams, Id(field.Name()).Add(
-				getQualifiedType(field.Type().String(), goPackage),
-			))
-			privateFields = append(privateFields, field)
+			privateParams = append(privateParams, Id(field.Name()).Add(qual))
+			privateFields = append(privateFields, field.Name())
 		} else {
-			publicParams = append(publicParams, Id(field.Name()).Add(
-				getQualifiedType(field.Type().String(), goPackage),
-			))
-			publicFields = append(publicFields, field)
+			publicParams = append(publicParams, Id(field.Name()).Add(qual))
+			publicFields = append(publicFields, field.Name())
 		}
 
 		// 2.2 generate required validation code (error if also private)
@@ -173,6 +172,7 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 	sF := shortForm(sourceTypeName)
 
 	// -- Add New() constructor
+	log.Printf("Generating 'New' constructor for %s with public fields: %s\n", sourceTypeName, publicFields)
 	f.Commentf("New returns a guaranteed-to-be-valid %s or an error", sourceTypeName)
 	f.Func().Id("New").Params(
 		publicParams...,
@@ -185,20 +185,21 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 		}
 		g.Id(sF).Op(":=").Op("&").Id(sourceTypeName).Values(
 			DictFunc(func(d Dict) {
-				for _, fld := range publicFields {
-					d[Id(fld.Name())] = Id(fld.Name())
+				for _, fldName := range publicFields {
+					d[Id(fldName)] = Id(fldName)
 				}
 			}),
 		)
 		if validatorMethod != "" {
 			g.If(Err().Op(":=").Id(sF).Dot(validatorMethod).Call()).Op(";").Err().Op("!=").Nil().Block(
-				Return(Nil(),Err()),
+				Return(Nil(), Err()),
 			)
 		}
 		g.Return(Id(sF), Nil())
 	})
 
 	// -- Add MustNew() constructor
+	log.Printf("Generating 'MustNew' constructor for %s with public fields: %s\n", sourceTypeName, publicFields)
 	f.Commentf("MustNew returns a guaranteed-to-be-valid %s or panics", sourceTypeName)
 	f.Func().Id("MustNew").Params(
 		publicParams...,
@@ -206,8 +207,8 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 		Op("*").Id(sourceTypeName),
 	).Block(
 		Id(sF).Op(",").Err().Op(":=").Id("New").CallFunc(func(g *Group) {
-			for _, fld := range publicFields {
-				g.Id(fld.Name())
+			for _, fldName := range publicFields {
+				g.Id(fldName)
 			}
 		}),
 		If(Err().Op("!=").Nil()).Block(
@@ -220,6 +221,7 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 	f.Line()
 
 	// -- Add UnmarshalFromRepository() unmarshaler
+	log.Printf("Generating 'UnmarshalFromRepository' unmarshaler for %s with additional private fields: %s\n", sourceTypeName, privateFields)
 	f.Commentf("UnmarshalFromRepository unmarshals %s from the repository so that non-constructable", sourceTypeName)
 	f.Comment("private fields can still be initialized from (private) repository state")
 	f.Comment("")
@@ -229,12 +231,12 @@ func generate(sourceTypeName, validatorMethod string, structType *types.Struct) 
 		allParams...,
 	).Op("*").Id(sourceTypeName).BlockFunc(func(g *Group) {
 		g.Id(sF).Op(":=").Id("MustNew").CallFunc(func(g *Group) {
-			for _, fld := range publicFields {
-				g.Id(fld.Name())
+			for _, fldName := range publicFields {
+				g.Id(fldName)
 			}
 		})
-		for _, fld := range privateFields {
-			g.Id(sF).Dot(fld.Name()).Op("=").Id(fld.Name())
+		for _, fldName := range privateFields {
+			g.Id(sF).Dot(fldName).Op("=").Id(fldName)
 		}
 		g.Return(Id(sF))
 	})
@@ -274,20 +276,26 @@ func shortForm(typeName string) string {
 	return strings.ToLower(string(typeName[0]))
 }
 
-func getQualifiedType(s, goPackage string) *Statement {
-	frst := ""
-	last := s[strings.LastIndex(s, ".")+1:]
-	if last != s {
-		frst = s[:strings.LastIndex(s, ".")]
+func getQualifiedJenType(ft types.Type, pkg *types.Package) *Statement {
+	// varTypeName := types.TypeString(v.Type(), pkgNameOnlyRelativeTo(v.Pkg()))
+	switch t := ft.(type) {
+	case *types.Basic:
+		return Id(t.Name())
+	case *types.Array:
+		return Index().Add(getQualifiedJenType(t.Elem(), pkg))
+	case *types.Slice:
+		return Index().Add(getQualifiedJenType(t.Elem(), pkg))
+	case *types.Map:
+		return Map(getQualifiedJenType(t.Key(), pkg)).Add(getQualifiedJenType(t.Elem(), pkg))
+	case *types.Named:
+		if pkg == t.Obj().Pkg() {
+			return Id(t.Obj().Name())
+		}
+		return Qual(t.Obj().Pkg().Path(), t.Obj().Name())
+	default:
+		log.Printf("Unsupported field type: %v\n", ft)
+		return Nil()
 	}
-	if isQualifiedImportSamePackage(frst, goPackage) {
-		return Id(last)
-	}
-	return Qual(frst, last)
-}
-
-func isQualifiedImportSamePackage(s, p string) bool {
-	return strings.HasSuffix(s, p)
 }
 
 func isPointer(s string) bool {

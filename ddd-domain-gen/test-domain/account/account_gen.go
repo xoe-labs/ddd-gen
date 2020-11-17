@@ -10,24 +10,32 @@ import (
 // Generators ...
 
 // New returns a guaranteed-to-be-valid Account or an error
-func New(uuid string, holder holder.Holder, address string) (*Account, error) {
+func New(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string) (*Account, error) {
 	if reflect.ValueOf(uuid).IsZero() {
 		return nil, errors.New("field uuid is empty")
 	}
 	if reflect.ValueOf(holder).IsZero() {
 		return nil, errors.New("field holder is empty")
 	}
+	if reflect.ValueOf(altHolders).IsZero() {
+		return nil, errors.New("field alternative holders is empty")
+	}
+	if reflect.ValueOf(holderRoles).IsZero() {
+		return nil, errors.New("field holder role map is empty")
+	}
 	a := &Account{
-		address: address,
-		holder:  holder,
-		uuid:    uuid,
+		address:     address,
+		altHolders:  altHolders,
+		holder:      holder,
+		holderRoles: holderRoles,
+		uuid:        uuid,
 	}
 	return a, nil
 }
 
 // MustNew returns a guaranteed-to-be-valid Account or panics
-func MustNew(uuid string, holder holder.Holder, address string) *Account {
-	a, err := New(uuid, holder, address)
+func MustNew(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string) *Account {
+	a, err := New(uuid, holder, altHolders, holderRoles, address)
 	if err != nil {
 		panic(err)
 	}
@@ -41,8 +49,8 @@ func MustNew(uuid string, holder holder.Holder, address string) *Account {
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromRepository(uuid string, holder holder.Holder, address string, balance int64, values []int64) *Account {
-	a := MustNew(uuid, holder, address)
+func UnmarshalFromRepository(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string, balance int64, values []int64) *Account {
+	a := MustNew(uuid, holder, altHolders, holderRoles, address)
 	a.balance = balance
 	a.values = values
 	return a
