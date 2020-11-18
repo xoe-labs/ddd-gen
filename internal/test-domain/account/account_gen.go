@@ -4,7 +4,7 @@ package account
 import (
 	"errors"
 	"fmt"
-	holder "github.com/xoe-labs/go-generators/ddd-domain-gen/test-domain/holder"
+	holder "github.com/xoe-labs/ddd-gen/internal/test-domain/holder"
 	"reflect"
 )
 

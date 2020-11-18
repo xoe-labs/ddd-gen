@@ -13,7 +13,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/xoe-labs/go-generators/ddd-domain-gen/pkg/directive"
+	"github.com/xoe-labs/ddd-gen/pkg/directive"
 )
 
 // StructTag Key

@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/xoe-labs/go-generators/ddd-domain-gen/cmd"
+import "github.com/xoe-labs/ddd-gen/cmd"
 
 func main() {
 	cmd.Execute()

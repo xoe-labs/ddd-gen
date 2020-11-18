@@ -1,10 +1,10 @@
 package account
 
 import (
-	"github.com/xoe-labs/go-generators/ddd-domain-gen/test-domain/holder"
+	"github.com/xoe-labs/ddd-gen/internal/test-domain/holder"
 )
 
-//go:generate go run ../../main.go -t Account
+//go:generate go run ../../../main.go -t Account
 type Account struct {
 	uuid        string                   `ddd:"required,field uuid is empty;equal;stringer"`
 	holder      holder.Holder            `ddd:"required,field holder is empty;getter"`

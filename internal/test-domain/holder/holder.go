@@ -15,7 +15,7 @@ var (
 )
 
 
-//go:generate go run ../../main.go -t Holder -v validate
+//go:generate go run ../../../main.go -t Holder -v validate
 type Holder struct {
 	uuid string     `ddd:"required,field uuid is empty;equal,reflect"`
 	name string     `ddd:"required,field name is empty;stringer"`

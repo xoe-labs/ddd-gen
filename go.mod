@@ -1,4 +1,4 @@
-module github.com/xoe-labs/go-generators/ddd-domain-gen
+module github.com/xoe-labs/ddd-gen
 
 go 1.14
 
