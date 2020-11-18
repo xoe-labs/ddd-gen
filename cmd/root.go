@@ -37,10 +37,29 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ddd-gen",
-	Short: "Generates idiomatic go code for a DDD projects",
-	// Run: func(cmd *cobra.Command, args []string) {
-	// 	return nil
-	// },
+	Short: "Generates idiomatic go code for projects around domain driven design",
+	Long: `Generates idiomatic go code for projects based on the following principles:
+
+Clean Architecture:
+  - domain layer (business logic)
+  - application layer (service logic)
+  - interfaces layer (ports of access)
+  - infrastructure layer (adapters to persistent storage or other services)
+
+Domain Driven Design
+  - encapsulate business logic
+  - in its own "universal language"
+  - within the domain layer
+
+Command Query Responsability Separation
+  - implement the application layer
+  - based on separation of
+  - write (command) models and
+  - read (query) models
+
+Domain Aggregates
+  - access the domain's data structures
+  - through a single top level aggregate`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
