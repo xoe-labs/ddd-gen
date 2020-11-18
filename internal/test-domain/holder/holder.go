@@ -15,12 +15,12 @@ var (
 )
 
 
-//go:generate go run ../../../main.go ddd -t Holder -v validate
+//go:generate go run ../../../main.go domain entity -t Holder -v validate
 type Holder struct {
-	uuid string     `ddd:"required,field uuid is empty;equal,reflect"`
-	name string     `ddd:"required,field name is empty;stringer"`
+	uuid string     `entity:"required,field uuid is empty;equal,reflect"`
+	name string     `entity:"required,field name is empty;stringer"`
 	bday time.Time
-	hTyp HolderType `ddd:"required,filed folder type is empty"`
+	hTyp HolderType `entity:"required,filed folder type is empty"`
 }
 
 func (h Holder) validate() error {

@@ -1,7 +1,7 @@
 // Copyright © 2020 David Arnold <dar@xoe.solutions>
 // SPDX-License-Identifier: MIT
 
-package generate
+package entity
 
 import (
 	"fmt"
@@ -18,8 +18,7 @@ import (
 
 // StructTag Key
 var (
-	// structTagGenKey = "gen" // use https://github.com/phelmkamp/metatag instead
-	structTagDDDKey = "ddd"
+	structTagEntityKey = "entity"
 )
 
 // A simple regexp pattern to match tag values
@@ -66,31 +65,31 @@ func generate(sourceTypeName, validatorMethod, goPackagePath string, structType 
 
 		// 2.2 match and classify fields according to tags
 		var private bool
-		if structTagDDDKeyValue, ok := tag.Lookup(structTagDDDKey); ok {
-			if matches := structGetterTagPattern.FindStringSubmatch(structTagDDDKeyValue); matches != nil {
+		if structTagEntityKeyValue, ok := tag.Lookup(structTagEntityKey); ok {
+			if matches := structGetterTagPattern.FindStringSubmatch(structTagEntityKeyValue); matches != nil {
 				genGetterFields = append(genGetterFields, field)
 			}
-			if matches := structSetterTagPattern.FindStringSubmatch(structTagDDDKeyValue); matches != nil {
+			if matches := structSetterTagPattern.FindStringSubmatch(structTagEntityKeyValue); matches != nil {
 				genSetterFields = append(genSetterFields, field)
 			}
-			if matches := structStringerTagPattern.FindStringSubmatch(structTagDDDKeyValue); matches != nil {
+			if matches := structStringerTagPattern.FindStringSubmatch(structTagEntityKeyValue); matches != nil {
 				genStringerFields = append(genStringerFields, field)
 			}
 
-			if matches := structPrivateTagPattern.FindStringSubmatch(structTagDDDKeyValue); matches != nil {
+			if matches := structPrivateTagPattern.FindStringSubmatch(structTagEntityKeyValue); matches != nil {
 				private = true
 				privateFlds = append(privateFlds, field)
 			} else {
 				publicFlds = append(publicFlds, field)
 			}
-			if requiredMatches := structRequiredTagPattern.FindStringSubmatch(structTagDDDKeyValue); requiredMatches != nil {
+			if requiredMatches := structRequiredTagPattern.FindStringSubmatch(structTagEntityKeyValue); requiredMatches != nil {
 				if private {
 					return fmt.Errorf("private field %s cannot be required", field.Name())
 				}
 				errMsg := requiredMatches[1]
 				validations = append(validations, directive.Validation{Field: field, ErrMsg: errMsg})
 			}
-			if equalMatches := structEqualTagPattern.FindStringSubmatch(structTagDDDKeyValue); equalMatches != nil {
+			if equalMatches := structEqualTagPattern.FindStringSubmatch(structTagEntityKeyValue); equalMatches != nil {
 				if (len(equalMatches) > 1 && equalMatches[1] != "") {
 					equalFlds = append(equalFlds, directive.EqualFld{Field: field, IsDeepEqual: true})
 				} else {

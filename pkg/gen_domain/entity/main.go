@@ -1,7 +1,7 @@
 // Copyright © 2020 David Arnold <dar@xoe.solutions>
 // SPDX-License-Identifier: MIT
 
-package generate
+package entity
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ var (
 	targetFilename string
 )
 
-func Main(sourceTypeName, validatorMethod string) error {
+func Gen(sourceTypeName, validatorMethod string) error {
 
 	// Get the package of the file with go:generate comment
 	goPackage = os.Getenv("GOPACKAGE")
