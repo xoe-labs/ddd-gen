@@ -3,11 +3,12 @@ package account
 
 import (
 	"errors"
+	"fmt"
 	holder "github.com/xoe-labs/go-generators/ddd-domain-gen/test-domain/holder"
 	"reflect"
 )
 
-// Generators ...
+// Constructors ...
 
 // New returns a guaranteed-to-be-valid Account or an error
 func New(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string) (*Account, error) {
@@ -54,4 +55,36 @@ func UnmarshalFromRepository(uuid string, holder holder.Holder, altHolders []hol
 	a.balance = balance
 	a.values = values
 	return a
+}
+
+// Accessors ...
+
+// Holder returns holder value
+func (a *Account) Holder() holder.Holder {
+	return a.holder
+}
+
+// SetAltHolders sets altHolders value
+func (a *Account) SetAltHolders(altHolders []holder.Holder) {
+	a.altHolders = altHolders
+}
+
+// Utilities ...
+
+// Equal answers whether v is equivalent to a
+// Always returns false if v is not a Account
+func (a Account) Equal(v interface{}) bool {
+	other, ok := v.(Account)
+	if !ok {
+		return false
+	}
+	if a.uuid != other.uuid {
+		return false
+	}
+	return a
+}
+
+// String implements the fmt.Stringer interface and returns the native format of Account
+func (a Account) String() string {
+	return fmt.Sprintf("%s ", a.uuid)
 }

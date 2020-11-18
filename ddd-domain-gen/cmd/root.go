@@ -45,9 +45,13 @@ var rootCmd = &cobra.Command{
 	Long: `Generates idiomatic go code for a DDD domain based on struct field annotations.
 
   Available Annotations:
-    Key "ddd"
+    Key "ddd" | Separator: ";"
       private             - this is private state, it can only be initialized directly from the repository
-      required'error msg' - if not present in the constructor, an error with the provided message will be returned
+      required,error msg  - if not present in the constructor, an error with the provided message will be returned
+      getter              - generates a simple getter for this field
+      setter              - generates a simple setter for this field
+      stringer            - generates a stringer for this field
+      equal[,reflect]     - incorporates this field into the equality tester method, with reflect option: use reflect.DeepEqual
 
   Expected Folder Structure:
     ./domain
@@ -63,9 +67,9 @@ var rootCmd = &cobra.Command{
 
   Code:
     type Account struct {
-        uuid    string ` + "`" + `ddd:"required'field uuid is empty'"` + "`" + `
-        holder  string
-        balance int64  ` + "`" + `ddd:"private"` + "`" + `
+        uuid    string ` + "`" + `ddd:"required,field uuid is empty;equal,reflect"` + "`" + `
+        holder  string ` + "`" + `ddd:"setter;getter;stringer"` + "`" + `
+        balance int64  ` + "`" + `ddd:"private;equal;getter"` + "`" + `
     }
 
     Important: expects non-pointer type fields.

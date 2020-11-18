@@ -17,15 +17,15 @@ var (
 
 //go:generate go run ../../main.go -t Holder -v validate
 type Holder struct {
-	uuid string     `ddd:"required'field uuid is empty'"`
-	name string     `ddd:"required'field name is empty'"`
+	uuid string     `ddd:"required,field uuid is empty;equal,reflect"`
+	name string     `ddd:"required,field name is empty;stringer"`
 	bday time.Time
-	hTyp HolderType `ddd:"required'filed folder type is empty'"`
+	hTyp HolderType `ddd:"required,filed folder type is empty"`
 }
 
 func (h Holder) validate() error {
 	if h.uuid == h.name {
-		return fmt.Errorf("uuid euqals name")
+		return fmt.Errorf("uuid equals name")
 	}
 	return nil
 }

@@ -3,11 +3,12 @@ package holder
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 )
 
-// Generators ...
+// Constructors ...
 
 // New returns a guaranteed-to-be-valid Holder or an error
 func New(uuid string, name string, bday time.Time, hTyp HolderType) (*Holder, error) {
@@ -51,4 +52,26 @@ func MustNew(uuid string, name string, bday time.Time, hTyp HolderType) *Holder 
 func UnmarshalFromRepository(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
 	h := MustNew(uuid, name, bday, hTyp)
 	return h
+}
+
+// Accessors ...
+
+// Utilities ...
+
+// Equal answers whether v is equivalent to h
+// Always returns false if v is not a Holder
+func (h Holder) Equal(v interface{}) bool {
+	other, ok := v.(Holder)
+	if !ok {
+		return false
+	}
+	if !reflect.DeepEqual(h.uuid, other.uuid) {
+		return false
+	}
+	return h
+}
+
+// String implements the fmt.Stringer interface and returns the native format of Holder
+func (h Holder) String() string {
+	return fmt.Sprintf("%s ", h.name)
 }
