@@ -107,8 +107,13 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 		topic = strings.Title(topic)
 		log.Printf("topic %s -> %s: generating handler and stub\n", topic, cmd)
 
-		genFile := path.Join(genPath, cmd+"_gen.go")
-		stubFile := path.Join(genPath, cmd+".go")
+		fileBaseName := toSnakeCase(cmd)
+		if getLastTitledWord(cmd) != topic {
+			fileBaseName = fileBaseName + "_" + strings.ToLower(topic)
+
+		}
+		genFile := path.Join(genPath, fileBaseName+"_gen.go")
+		stubFile := path.Join(genPath, fileBaseName+".go")
 
 		// Remove existing generated file
 		if fileExists(genFile) {
@@ -132,14 +137,26 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 	return nil
 }
 
+var (
+	matchFirstLetterFollowedByCapWord = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	matchAllLowCapTransition          = regexp.MustCompile("([a-z0-9])([A-Z])")
+	matchAllCapWord                   = regexp.MustCompile("[A-Z][a-z]+")
+)
+
 func getLastTitledWord(s string) string {
 	b := []byte(s)
-	re := regexp.MustCompile(`[A-Z][a-z]+`)
-	slsl := re.FindAllIndex(b, -1)
+	slsl := matchAllCapWord.FindAllIndex(b, -1)
 	lastsl := slsl[len(slsl)-1]
 	return string(b[lastsl[0]:lastsl[1]])
 
 }
+
+func toSnakeCase(str string) string {
+	snake := matchFirstLetterFollowedByCapWord.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllLowCapTransition.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
+
 func fileExists(filename string) bool {
 	info, err := os.Stat(filename)
 	if os.IsNotExist(err) {
