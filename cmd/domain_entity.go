@@ -27,12 +27,11 @@ import (
 )
 
 var (
-	sourceType      string
 	validatorMethod string
 )
 
-// entityCmd represents the entity command
-var entityCmd = &cobra.Command{
+// domainEntityCmd represents the entity command
+var domainEntityCmd = &cobra.Command{
 	Use:   "entity",
 	Short: "Generates idiomatic go code for an entity within the domain layer",
 	Long: `Generates idiomatic go code for an entity based on struct field tags.
@@ -75,9 +74,6 @@ var entityCmd = &cobra.Command{
 }
 
 func init() {
-	domainCmd.AddCommand(entityCmd)
-
-	entityCmd.Flags().StringVarP(&sourceType, "type", "t", "", "The source type for which to generate the code")
-	entityCmd.MarkFlagRequired("type")
-	entityCmd.Flags().StringVarP(&validatorMethod, "validator", "v", "", "The validator method that constructors should reach out to")
+	domainCmd.AddCommand(domainEntityCmd)
+	domainEntityCmd.Flags().StringVarP(&validatorMethod, "validator", "v", "", "The validator method that constructors should reach out to")
 }

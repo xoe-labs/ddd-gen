@@ -23,24 +23,29 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/xoe-labs/ddd-gen/pkg/gen_app/command"
 )
 
-// appCmd represents the app command
-var appCmd = &cobra.Command{
-	Use:   "app",
-	Short: "Generates idiomatic go code for the application layer",
+// appCommandCmd represents the app command
+var appCommandCmd = &cobra.Command{
+	Use:   "command",
+	Short: "Generates idiomatic go code for commands (CQRS) within the application layer",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := command.NewConfig(
+			viper.GetString("aggregate"),
+			viper.GetString("policeable"),
+			viper.GetString("identifiable"),
+			viper.GetString("repository"),
+			viper.GetString("policer"),
+		)
+		if err != nil {
+			return err
+		}
+		return command.Gen(sourceType, *cfg)
+	},
 }
 
 func init() {
-	rootCmd.AddCommand(appCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// appCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// appCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	appCmd.AddCommand(appCommandCmd)
 }

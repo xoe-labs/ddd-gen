@@ -15,7 +15,7 @@ var (
 )
 
 
-//go:generate go run ../../../main.go domain entity -t Holder -v validate
+//go:generate go run ../../../../main.go --config ../../ddd-config.yaml domain entity -t Holder -v validate
 type Holder struct {
 	uuid string     `entity:"required,field uuid is empty;equal,reflect"`
 	name string     `entity:"required,field name is empty;stringer"`
