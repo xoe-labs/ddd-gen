@@ -1,4 +1,4 @@
 
-package balancesvc
+package balancer
 
 type Balancer interface{} // dummy adapter

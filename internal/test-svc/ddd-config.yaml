@@ -1,5 +1,5 @@
 aggregate:    "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account.Account"
-identifiable: "github.com/xoe-labs/ddd-gen/internal/test-svc/domain.Identifiable"
-repository:   "github.com/xoe-labs/ddd-gen/internal/test-svc/domain.Repository"
+identifiable: "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository.Identifiable"
+repository:   "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository.Repository"
 policeable:   "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy.Policeable"
 policer:      "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy.Policer"
