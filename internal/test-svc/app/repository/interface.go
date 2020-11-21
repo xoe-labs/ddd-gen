@@ -22,7 +22,4 @@ type Repository interface {
 type Identifiable interface {
 	// Identifer knows how to identify an object
 	Identifier() uuid.UUID
-
-	// IsIdentifiable answers the question wether an object is identified
-	IsIdentifiable() bool
 }

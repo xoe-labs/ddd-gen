@@ -155,7 +155,9 @@ func addCommandFuncHandle(f *File,
 		),
 	).BlockFunc(func(g *Group) {
 		g.If(
-			Op("!").Id(cmdShortForm(DoSomething)).Dot("IsIdentifiable").Call(),
+			Qual("reflect", "ValueOf").Call(
+				Id(cmdShortForm(DoSomething)).Dot("Identifier").Call(),
+			).Dot("IsZero").Call(),
 		).Block(
 			Return().Id("Err" + DoSomething + "NotIdentifiable"),
 		)
@@ -276,7 +278,9 @@ func addCommandFuncHandleNew(f *File,
 	).BlockFunc(func(g *Group) {
 		if addWithIdentifiable {
 			g.If(
-				Op("!").Id(cmdShortForm(DoSomething)).Dot("IsIdentifiable").Call(),
+				Qual("reflect", "ValueOf").Call(
+					Id(cmdShortForm(DoSomething)).Dot("Identifier").Call(),
+				).Dot("IsZero").Call(),
 			).Block(
 				Return().Id("Err" + DoSomething + "NotIdentifiable"),
 			)
@@ -392,24 +396,6 @@ func addCommandFuncHandleNew(f *File,
 			}
 		})
 	})
-}
-
-func addCommandIsIdentifiable(f *File, DoSomething string) {
-	f.Commentf("IsIdentifiable answers the question wether the %s's object is identifiable", DoSomething)
-	f.Null().Func().Params(
-		Id(cmdShortForm(DoSomething)).Id(DoSomething),
-	).Id(
-		"IsIdentifiable",
-	).Params().Id("bool").Block(
-		If(
-			Qual("reflect", "ValueOf").Call(
-				Id(cmdShortForm(DoSomething)).Dot("Identifier").Call(),
-			).Dot("IsZero").Call(),
-		).Block(
-			Return().Id("true"),
-		),
-		Return().Id("false"),
-	)
 }
 
 // Stubs ...
