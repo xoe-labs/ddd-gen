@@ -30,40 +30,65 @@ type NamedQualId struct {
 }
 
 type ParsedConfig struct {
-	AggEntityStruct       QualId
+	// Aggregate Entity
+	AggEntityStruct QualId
+	// Application defined interfaces
 	PoliceableInterface   QualId
 	IdentifiableInterface QualId
 	RepositoryInterface   QualId
 	PolicerInterface      QualId
-	IdentifierTyp         QualId
-	UserTyp               QualId
-	ElevationTokenTyp     QualId
+	// Iface method return types
+	IdentifierTyp     QualId
+	UserTyp           QualId
+	ElevationTokenTyp QualId
+	// Error constructor
+	AuthorizationErrorNew  QualId
+	IdentificationErrorNew QualId
+	RepositoryErrorNew     QualId
+	DomainErrorNew         QualId
 }
 
 // Regeneratables ...
 
-func addCommandNotAuthorizedErr(f *File, DoSomething string) {
-	f.Commentf("ErrNotAuthorizedTo%s signals that the caller is not authorized to perform %s", DoSomething, DoSomething)
-	f.Null().Const().Id(
-		"ErrNotAuthorizedTo"+DoSomething,
-	).Op("=").Qual(
-		"github.com/xoe-labs/vicidial-go/internal/common/errors",
-		"AuthorizationError",
-	).Call(
-		Lit("ErrNotAuthorizedTo" + DoSomething),
-	)
-}
-
-func addCommandNotIdentifiableErr(f *File, DoSomething string) {
-	f.Commentf("Err%sNotIdentifiable signals that the command's object was not identifiable", DoSomething)
-	f.Null().Const().Id(
-		"Err"+DoSomething+"NotIdentifiable",
-	).Op("=").Qual(
-		"github.com/xoe-labs/vicidial-go/internal/common/errors",
-		"IdentificationError",
-	).Call(
-		Lit("Err" + DoSomething + "NotIdentifiable"),
-	)
+func addCommandErrors(f *File, DoSomething string, authErr, idErr, repoErr, domErr *QualId) {
+	f.Null().Var().DefsFunc(func(g *Group) {
+		if authErr != nil {
+			g.Commentf("ErrNotAuthorizedTo%s signals that the caller is not authorized to perform %s", DoSomething, DoSomething)
+			g.Id("ErrNotAuthorizedTo"+DoSomething).Op("=").Qual(
+				authErr.Qual,
+				authErr.Id,
+			).Call(
+				Lit("ErrNotAuthorizedTo" + DoSomething),
+			)
+		}
+		if idErr != nil {
+			g.Commentf("Err%sNotIdentifiable signals that %s's command object was not identifiable", DoSomething, DoSomething)
+			g.Id("Err"+DoSomething+"NotIdentifiable").Op("=").Qual(
+				idErr.Qual,
+				idErr.Id,
+			).Call(
+				Lit("Err" + DoSomething + "NotIdentifiable"),
+			)
+		}
+		if repoErr != nil {
+			g.Commentf("Err%sFailedInRepository signals that %s failed in the repository layer", DoSomething, DoSomething)
+			g.Id("Err"+DoSomething+"FailedInRepository").Op("=").Qual(
+				repoErr.Qual,
+				repoErr.Id,
+			).Call(
+				Lit("Err" + DoSomething + "FailedInRepository"),
+			)
+		}
+		if domErr != nil {
+			g.Commentf("Err%sFailedInDomain signals that %s failed in the domain layer", DoSomething, DoSomething)
+			g.Id("Err"+DoSomething+"FailedInDomain").Op("=").Qual(
+				domErr.Qual,
+				domErr.Id,
+			).Call(
+				Lit("Err" + DoSomething + "FailedInDomain"),
+			)
+		}
+	})
 }
 
 func addCommandHandlerType(f *File, DoSomething string, adapters []NamedQualId) {
@@ -109,7 +134,12 @@ func addCommandHandlerConstructor(f *File, DoSomething string, adapters []NamedQ
 		})
 	})
 }
-func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntity QualId, genTyp genTyp, extraAdapters []NamedQualId) {
+func addCommandFuncHandle(f *File,
+	DoSomething string,
+	withPolicy bool,
+	aggEntity QualId,
+	genTyp genTyp,
+	extraAdapters []NamedQualId) {
 	entityShort := cmdShortForm(aggEntity.Id)
 	f.Commentf("Handle generically performs %s", DoSomething)
 	f.Func().Params(
@@ -154,7 +184,7 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntit
 						Panic(
 							Id("err"),
 						).Comment(
-							"the domain shall always be consistent!",
+							"invariant violation: the domain shall always be consistent!",
 						),
 					)
 					g.If(
@@ -183,25 +213,58 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntit
 					}),
 					Id("err").Op("!=").Id("nil"),
 				).Block(
-					Return().Id("err"),
+					Return().Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+						Id("Err"+DoSomething+"FailedInDomain"),
+						Id("err"),
+					),
 				)
 				g.Return().Id("nil")
 			}),
 		)
 		g.If(
 			Id("err").Op("!=").Id("nil"),
-		).Block(
-			Return().Id("err"),
-		)
+		).BlockFunc(func(g *Group) {
+			if withPolicy {
+				g.If(
+					Qual("github.com/hashicorp/errwrap", "Contains").Call(
+						Id("err"),
+						Lit("ErrNotAuthorizedTo"+DoSomething),
+					),
+				).Block(
+					Return().Id("err"),
+				)
+			}
+			g.If(
+				Qual("github.com/hashicorp/errwrap", "Contains").Call(
+					Id("err"),
+					Lit("Err"+DoSomething+"FailedInDomain"),
+				),
+			).Block(
+				Return().Id("err"),
+			)
+			g.Return(
+				Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+					Lit("Err"+DoSomething+"FailedInRepository"),
+					Id("err"),
+				),
+			)
+		})
 		g.Return(
 			Id("nil"),
 		)
 	})
 }
 
-func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIdentifiable bool, aggEntity, identifierTyp QualId, genTyp genTyp, extraAdapters []NamedQualId) {
-	needReturnIdentifer := (!addWithIdentifiable)
+func addCommandFuncHandleNew(f *File,
+	DoSomething string,
+	withPolicy,
+	addWithIdentifiable bool,
+	aggEntity,
+	identifierTyp QualId,
+	genTyp genTyp,
+	extraAdapters []NamedQualId) {
 	entityShort := cmdShortForm(aggEntity.Id)
+	needReturnIdentifer := (!addWithIdentifiable)
 	f.Commentf("Handle generically performs %s", DoSomething)
 	f.Func().Params(
 		Id("h").Id(DoSomething+"Handler"),
@@ -256,8 +319,9 @@ func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIde
 					}),
 					Id("err").Op("!=").Id("nil"),
 				).Block(
-					Return(
-						Id("nil"), Id("err"),
+					Return().Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+						Id("Err"+DoSomething+"FailedInDomain"),
+						Id("err"),
 					),
 				)
 				if withPolicy {
@@ -271,7 +335,7 @@ func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIde
 						Panic(
 							Id("err"),
 						).Comment(
-							"the domain shall always be consistent!",
+							"invariant violation: the domain shall always be consistent!",
 						),
 					)
 					g.If(
@@ -298,14 +362,52 @@ func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIde
 		g.If(
 			Id("err").Op("!=").Id("nil"),
 		).BlockFunc(func(g *Group) {
-			if needReturnIdentifer {
-				g.Return(
-					Id("identifier"),
-					Id("err"),
+			if withPolicy {
+				g.If(
+					Qual("github.com/hashicorp/errwrap", "Contains").Call(
+						Id("err"),
+						Lit("ErrNotAuthorizedTo"+DoSomething),
+					),
+				).Block(
+					ReturnFunc(func(g *Group) {
+						if needReturnIdentifer {
+							g.Id("identifier")
+							g.Id("err")
+						} else {
+							g.Id("err")
+						}
+					}),
 				)
-			} else {
-				g.Return().Id("err")
 			}
+			g.If(
+				Qual("github.com/hashicorp/errwrap", "Contains").Call(
+					Id("err"),
+					Lit("Err"+DoSomething+"FailedInDomain"),
+				),
+			).Block(
+				ReturnFunc(func(g *Group) {
+					if needReturnIdentifer {
+						g.Id("identifier")
+						g.Id("err")
+					} else {
+						g.Id("err")
+					}
+				}),
+			)
+			g.ReturnFunc(func(g *Group) {
+				if needReturnIdentifer {
+					g.Id("identifier")
+					g.Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+						Lit("Err"+DoSomething+"FailedInRepository"),
+						Id("err"),
+					)
+				} else {
+					g.Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+						Lit("Err"+DoSomething+"FailedInRepository"),
+						Id("err"),
+					)
+				}
+			})
 		})
 		g.ReturnFunc(func(g *Group) {
 			if needReturnIdentifer {
@@ -430,11 +532,33 @@ func GenCommand(cmd, topic string, withPolicy, addWithIdentifiable bool, allAdap
 	ret.Commentf("Topic: %s", topic)
 	ret.Line()
 	if genTyp != AddTyp || addWithIdentifiable {
-		addCommandIsIdentifiable(ret, cmd)
-	}
-	addCommandNotAuthorizedErr(ret, cmd)
-	if genTyp != AddTyp || addWithIdentifiable {
-		addCommandNotIdentifiableErr(ret, cmd)
+		if withPolicy {
+			addCommandErrors(ret, cmd,
+				&conf.AuthorizationErrorNew,
+				&conf.IdentificationErrorNew,
+				&conf.RepositoryErrorNew,
+				&conf.DomainErrorNew)
+		} else {
+			addCommandErrors(ret, cmd,
+				nil,
+				&conf.IdentificationErrorNew,
+				&conf.RepositoryErrorNew,
+				&conf.DomainErrorNew)
+		}
+	} else {
+		if withPolicy {
+			addCommandErrors(ret, cmd,
+				&conf.AuthorizationErrorNew,
+				nil,
+				&conf.RepositoryErrorNew,
+				&conf.DomainErrorNew)
+		} else {
+			addCommandErrors(ret, cmd,
+				nil,
+				nil,
+				&conf.RepositoryErrorNew,
+				&conf.DomainErrorNew)
+		}
 	}
 	addCommandHandlerType(ret, cmd, allAdapters)
 	addCommandHandlerConstructor(ret, cmd, allAdapters)

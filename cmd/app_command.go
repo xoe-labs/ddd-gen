@@ -84,6 +84,11 @@ var appCommandCmd = &cobra.Command{
 			viper.GetString("identifiable"),
 			viper.GetString("repository"),
 			viper.GetString("policer"),
+
+			viper.GetString("authorizationErrorNew"),
+			viper.GetString("identificationErrorNew"),
+			viper.GetString("repositoryErrorNew"),
+			viper.GetString("domainErrorNew"),
 		)
 		if err != nil {
 			return err

@@ -77,16 +77,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.ddd-gen.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&sourceType, "type", "t", "", "The source type for which to generate the code")
 	rootCmd.MarkPersistentFlagRequired("type")
-	rootCmd.PersistentFlags().String("aggregate", "", "The fully qualified aggregate entity struct")
-	rootCmd.PersistentFlags().String("policeable", "", "The fully qualified policeable interface")
-	rootCmd.PersistentFlags().String("identifiable", "", "The fully qualified identifiable interface")
-	rootCmd.PersistentFlags().String("repository", "", "The fully qualified repository interface")
-	rootCmd.PersistentFlags().String("policer", "", "The fully qualified policer interface")
-	viper.BindPFlag("aggregate", rootCmd.PersistentFlags().Lookup("aggregate"))
-	viper.BindPFlag("policeable", rootCmd.PersistentFlags().Lookup("policeable"))
-	viper.BindPFlag("identifiable", rootCmd.PersistentFlags().Lookup("identifiable"))
-	viper.BindPFlag("repository", rootCmd.PersistentFlags().Lookup("repository"))
-	viper.BindPFlag("policer", rootCmd.PersistentFlags().Lookup("policer"))
 }
 
 // initConfig reads in config file and ENV variables if set.

@@ -41,15 +41,20 @@ func generateDoc(docFile string) {
 func generate(genPath, sourceTypeName string, struuct *types.Struct, conf directive.ParsedConfig) error {
 	log.Printf("Generating code in: %s\n", genPath)
 	log.Println("  using arguments ...")
-	log.Printf("\taggregate:    %s.%s\n", conf.AggEntityStruct.Qual, conf.AggEntityStruct.Id)
-	log.Printf("\tidentifiable: %s.%s\n", conf.IdentifiableInterface.Qual, conf.IdentifiableInterface.Id)
-	log.Printf("\tpoliceable:   %s.%s\n", conf.PoliceableInterface.Qual, conf.PoliceableInterface.Id)
-	log.Printf("\tpolicer:      %s.%s\n", conf.PolicerInterface.Qual, conf.PolicerInterface.Id)
-	log.Printf("\trepository:   %s.%s\n", conf.RepositoryInterface.Qual, conf.RepositoryInterface.Id)
+	log.Printf("\taggregate:    %s %s\n", conf.AggEntityStruct.Qual, conf.AggEntityStruct.Id)
+	log.Printf("\tidentifiable: %s %s\n", conf.IdentifiableInterface.Qual, conf.IdentifiableInterface.Id)
+	log.Printf("\tpoliceable:   %s %s\n", conf.PoliceableInterface.Qual, conf.PoliceableInterface.Id)
+	log.Printf("\tpolicer:      %s %s\n", conf.PolicerInterface.Qual, conf.PolicerInterface.Id)
+	log.Printf("\trepository:   %s %s\n", conf.RepositoryInterface.Qual, conf.RepositoryInterface.Id)
 	log.Println("  infered types ...")
 	log.Printf("\tidentiferTyp:        %s %s\n", conf.IdentifierTyp.Qual, conf.IdentifierTyp.Id)
 	log.Printf("\tuserTyp:             %s %s\n", conf.UserTyp.Qual, conf.UserTyp.Id)
 	log.Printf("\televationTokenTyp:   %s %s\n", conf.ElevationTokenTyp.Qual, conf.ElevationTokenTyp.Id)
+	log.Println("  error constructors ...")
+	log.Printf("\tauthorizationErrorNew:     %s %s\n", conf.AuthorizationErrorNew.Qual, conf.AuthorizationErrorNew.Id)
+	log.Printf("\tidentificationErrorNew:    %s %s\n", conf.IdentificationErrorNew.Qual, conf.IdentificationErrorNew.Id)
+	log.Printf("\trepositoryErrorNew:        %s %s\n", conf.RepositoryErrorNew.Qual, conf.RepositoryErrorNew.Id)
+	log.Printf("\tdomainErrorNew:            %s %s\n", conf.DomainErrorNew.Qual, conf.DomainErrorNew.Id)
 
 	// 2. iterate over  fields
 	for i := 0; i < struuct.NumFields(); i++ {

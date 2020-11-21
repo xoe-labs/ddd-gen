@@ -30,14 +30,22 @@ const (
 )
 
 type Config struct {
-	aggEntityStruct       string
+	// Domain aggregate entity
+	aggEntityStruct string
+	// Application defined interfaces
 	policeableInterface   string
 	identifiableInterface string
 	repositoryInterface   string
 	policerInterface      string
+	// Error constructors
+	authorizationErrorNew  string
+	identificationErrorNew string
+	repositoryErrorNew     string
+	domainErrorNew         string
 }
 
-func NewConfig(aggEntityStruct, policeableInterface, identifiableInterface, repositoryInterface, policerInterface string) (*Config, error) {
+func NewConfig(aggEntityStruct, policeableInterface, identifiableInterface, repositoryInterface, policerInterface,
+	authorizationErrorNew, identificationErrorNew, repositoryErrorNew, domainErrorNew string) (*Config, error) {
 
 	if aggEntityStruct == "" {
 		return nil, fmt.Errorf("aggEntityStruct not set")
@@ -54,13 +62,28 @@ func NewConfig(aggEntityStruct, policeableInterface, identifiableInterface, repo
 	if policerInterface == "" {
 		return nil, fmt.Errorf("policerInterface not set")
 	}
-
+	if authorizationErrorNew == "" {
+		return nil, fmt.Errorf("authorizationErrorNew not set")
+	}
+	if identificationErrorNew == "" {
+		return nil, fmt.Errorf("identificationErrorNew not set")
+	}
+	if repositoryErrorNew == "" {
+		return nil, fmt.Errorf("repositoryErrorNew not set")
+	}
+	if domainErrorNew == "" {
+		return nil, fmt.Errorf("domainErrorNew not set")
+	}
 	return &Config{
-		aggEntityStruct:       aggEntityStruct,
-		policeableInterface:   policeableInterface,
-		identifiableInterface: identifiableInterface,
-		repositoryInterface:   repositoryInterface,
-		policerInterface:      policerInterface,
+		aggEntityStruct:        aggEntityStruct,
+		policeableInterface:    policeableInterface,
+		identifiableInterface:  identifiableInterface,
+		repositoryInterface:    repositoryInterface,
+		policerInterface:       policerInterface,
+		authorizationErrorNew:  authorizationErrorNew,
+		identificationErrorNew: identificationErrorNew,
+		repositoryErrorNew:     repositoryErrorNew,
+		domainErrorNew:         domainErrorNew,
 	}, nil
 }
 
@@ -127,6 +150,18 @@ func Gen(sourceTypeName string, conf Config) error {
 	if !isValidQualId(conf.repositoryInterface) {
 		return fmt.Errorf("%s is not a valid full qualifier", conf.repositoryInterface)
 	}
+	if !isValidQualId(conf.authorizationErrorNew) {
+		return fmt.Errorf("%s is not a valid full qualifier", conf.authorizationErrorNew)
+	}
+	if !isValidQualId(conf.identificationErrorNew) {
+		return fmt.Errorf("%s is not a valid full qualifier", conf.identificationErrorNew)
+	}
+	if !isValidQualId(conf.repositoryErrorNew) {
+		return fmt.Errorf("%s is not a valid full qualifier", conf.repositoryErrorNew)
+	}
+	if !isValidQualId(conf.domainErrorNew) {
+		return fmt.Errorf("%s is not a valid full qualifier", conf.domainErrorNew)
+	}
 
 	// Inspect Interfaces, look for given methods and detect their qualified return type
 	identifiableInterface := splitQual(conf.identifiableInterface)
@@ -147,14 +182,21 @@ func Gen(sourceTypeName string, conf Config) error {
 
 	// Generate code using jennifer
 	err = generate(genPath, sourceTypeName, structType, directive.ParsedConfig{
-		AggEntityStruct:       splitQual(conf.aggEntityStruct),
-		RepositoryInterface:   splitQual(conf.repositoryInterface),
-		PolicerInterface:      splitQual(conf.policerInterface),
+		AggEntityStruct:     splitQual(conf.aggEntityStruct),
+		RepositoryInterface: splitQual(conf.repositoryInterface),
+		PolicerInterface:    splitQual(conf.policerInterface),
+
 		IdentifiableInterface: identifiableInterface,
 		PoliceableInterface:   policeableInterface,
-		IdentifierTyp:         identifierTyp,
-		UserTyp:               userTyp,
-		ElevationTokenTyp:     elevationTokenTyp,
+
+		IdentifierTyp:     identifierTyp,
+		UserTyp:           userTyp,
+		ElevationTokenTyp: elevationTokenTyp,
+
+		AuthorizationErrorNew:  splitQual(conf.authorizationErrorNew),
+		IdentificationErrorNew: splitQual(conf.identificationErrorNew),
+		RepositoryErrorNew:     splitQual(conf.repositoryErrorNew),
+		DomainErrorNew:         splitQual(conf.domainErrorNew),
 	})
 	if err != nil {
 		return err
