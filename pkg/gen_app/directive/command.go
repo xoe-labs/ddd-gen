@@ -14,6 +14,32 @@ import (
 
 var cmdGenCommand string = "ddd-gen app command"
 
+type genTyp string
+
+const (
+	AddTyp genTyp = "Add"
+	RemTyp genTyp = "Remove"
+	UpdTyp genTyp = "Update"
+)
+
+type QualId struct{ Id, Qual string }
+
+type NamedQualId struct {
+	Name string
+	QualId
+}
+
+type ParsedConfig struct {
+	AggEntityStruct       QualId
+	PoliceableInterface   QualId
+	IdentifiableInterface QualId
+	RepositoryInterface   QualId
+	PolicerInterface      QualId
+	IdentifierTyp         QualId
+	UserTyp               QualId
+	ElevationTokenTyp     QualId
+}
+
 // Regeneratables ...
 
 func addCommandNotAuthorizedErr(f *File, DoSomething string) {
@@ -40,52 +66,52 @@ func addCommandNotIdentifiableErr(f *File, DoSomething string) {
 	)
 }
 
-func addCommandHandlerType(f *File, DoSomething string, adapters []struct{ Id, Qual string }) {
+func addCommandHandlerType(f *File, DoSomething string, adapters []NamedQualId) {
 	f.Commentf("%sHandler knows how to perform %s", DoSomething, DoSomething)
 	f.Null().Type().Id(
 		DoSomething + "Handler",
 	).StructFunc(func(g *Group) {
-		for _, s := range adapters {
-			g.Id(s.Id).Qual(splitQual(s.Qual))
+		for _, a := range adapters {
+			g.Id(a.Name).Qual(a.Qual, a.Id)
 		}
 	})
 }
-func addCommandHandlerConstructor(f *File, DoSomething string, adapters []struct{ Id, Qual string }) {
+func addCommandHandlerConstructor(f *File, DoSomething string, adapters []NamedQualId) {
 	f.Commentf("New%sHandler returns %sHandler", DoSomething, DoSomething)
 	f.Func().Id(
 		"New" + DoSomething + "Handler",
 	).ParamsFunc(func(g *Group) {
-		for _, s := range adapters {
-			g.Id(s.Id).Qual(splitQual(s.Qual))
+		for _, a := range adapters {
+			g.Id(a.Name).Qual(a.Qual, a.Id)
 		}
 	}).Params(
 		Op("*").Id(DoSomething + "Handler"),
 	).BlockFunc(func(g *Group) {
-		for _, s := range adapters {
+		for _, a := range adapters {
 			g.If(
 				Qual(
 					"reflect", "ValueOf",
 				).Call(
-					Id(s.Id),
+					Id(a.Name),
 				).Dot(
 					"IsZero",
 				).Call(),
 			).Block(
-				Id("panic").Call(Lit("no '" + s.Id + "' provided!")),
+				Id("panic").Call(Lit("no '" + a.Name + "' provided!")),
 			)
 		}
 		g.Return().Op("&").Id(
 			DoSomething + "Handler",
 		).ValuesFunc(func(g *Group) {
-			for _, s := range adapters {
-				g.Id(s.Id).Op(":").Id(s.Id)
+			for _, a := range adapters {
+				g.Id(a.Name).Op(":").Id(a.Name)
 			}
 		})
 	})
 }
-func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntity string) {
-	entityImp, entityId := splitQual(aggEntity)
-	entityShort := cmdShortForm(entityId)
+func addCommandFuncHandle(f *File, DoSomething string, withPolicy, addWithIdentifiable bool, aggEntity, identifierTyp QualId, genTyp genTyp) {
+	needReturnIdentifer := (genTyp == AddTyp && !addWithIdentifiable)
+	entityShort := cmdShortForm(aggEntity.Id)
 	f.Commentf("Handle generically performs %s", DoSomething)
 	f.Func().Params(
 		Id("h").Id(DoSomething+"Handler"),
@@ -94,39 +120,58 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntit
 	).Params(
 		Id("ctx").Qual("context", "Context"),
 		Id(cmdShortForm(DoSomething)).Id(DoSomething),
-	).Params(
-		Id("error"),
-	).Block(
-		If(
-			Op("!").Id(cmdShortForm(DoSomething)).Dot("IsIdentifiable").Call(),
-		).Block(
-			Return().Id("Err"+DoSomething+"NotIdentifiable"),
-		),
-		If(
-			Id("err").Op(":=").Id("h").Dot("agg").Dot(
-				"Update",
+	).ListFunc(func(g *Group) {
+		if needReturnIdentifer {
+			g.Qual(identifierTyp.Qual, identifierTyp.Id)
+		}
+		g.Id("error")
+	}).BlockFunc(func(g *Group){
+		if genTyp != AddTyp || addWithIdentifiable {
+			g.If(
+				Op("!").Id(cmdShortForm(DoSomething)).Dot("IsIdentifiable").Call(),
+			).Block(
+				Return().Id("Err" + DoSomething + "NotIdentifiable"),
+			)
+		}
+		g.IfFunc(func(g *Group) {
+			g.ListFunc(func(g *Group) {
+				if genTyp == AddTyp {
+					if needReturnIdentifer {
+						g.Id("identifier")
+					} else {
+						g.Id("_")
+					}
+				}
+				g.Id("err")
+			}).Op(":=").Id("h").Dot("agg").Dot(
+				string(genTyp),
 			).Call(
 				Id("ctx"),
 				Id(cmdShortForm(DoSomething)),
 				Func().Params(
-					Id(entityShort).Op("*").Qual(entityImp, entityId),
-				).Add(
-					Id("error"),
-				).Block(
-					If(
-						Id("ok").Op(":=").Id("h").Dot("pol").Dot(
-							"Can",
-						).Call(
-							Id("ctx"),
-							Id(cmdShortForm(DoSomething)),
-							Lit(DoSomething),
-							Qual("json", "Marshal").Call(Id(entityShort)),
-						),
-						Op("!").Id("ok"),
-					).Block(
-						Return().Id("ErrNotAuthorizedTo"+DoSomething),
-					),
-					If(
+					Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id),
+				).ListFunc(func(g *Group) {
+					if needReturnIdentifer {
+						g.Qual(identifierTyp.Qual, identifierTyp.Id)
+					}
+					g.Id("error")
+				}).BlockFunc(func(g *Group) {
+					if withPolicy {
+						g.If(
+							Id("ok").Op(":=").Id("h").Dot("pol").Dot(
+								"Can",
+							).Call(
+								Id("ctx"),
+								Id(cmdShortForm(DoSomething)),
+								Lit(DoSomething),
+								Qual("json", "Marshal").Call(Id(entityShort)),
+							),
+							Op("!").Id("ok"),
+						).Block(
+							Return().Id("ErrNotAuthorizedTo" + DoSomething),
+						)
+					}
+					g.If(
 						Id("err").Op(":=").Id(cmdShortForm(DoSomething)).Dot(
 							"handle",
 						).Call(
@@ -136,16 +181,30 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntit
 						Id("err").Op("!=").Id("nil"),
 					).Block(
 						Return().Id("err"),
-					),
-					Return().Id("nil"),
-				),
-			),
-			Id("err").Op("!=").Id("nil"),
-		).Block(
-			Return().Id("err"),
-		),
-		Return().Id("nil"),
-	)
+					)
+					g.Return().Id("nil")
+				}),
+			)
+			g.Id("err").Op("!=").Id("nil")
+		}).BlockFunc(func(g *Group) {
+			if needReturnIdentifer {
+				g.Return(
+					Id("identifier"),
+					Id("err"),
+				)
+			} else {
+				g.Return().Id("err")
+			}
+		})
+		g.ReturnFunc(func(g *Group) {
+			if needReturnIdentifer {
+				g.Id("identifier")
+				g.Id("nil")
+			} else {
+				g.Id("nil")
+			}
+		})
+	})
 }
 
 func addCommandIsIdentifiable(f *File, DoSomething string) {
@@ -154,8 +213,7 @@ func addCommandIsIdentifiable(f *File, DoSomething string) {
 		Id(cmdShortForm(DoSomething)).Id(DoSomething),
 	).Id(
 		"IsIdentifiable",
-	).Params(
-	).Id("bool").Block(
+	).Params().Id("bool").Block(
 		If(
 			Qual("reflect", "ValueOf").Call(
 				Id(cmdShortForm(DoSomething)).Dot("Identifier").Call(),
@@ -169,21 +227,21 @@ func addCommandIsIdentifiable(f *File, DoSomething string) {
 
 // Stubs ...
 
-func addCommandTypeStub(f *File, DoSomething string) {
+func addCommandTypeStub(f *File, DoSomething string, identifierTyp, userTyp, elevationTokenTyp QualId) {
 	f.Commentf("%s represents a %s command", DoSomething, DoSomething)
 	f.Null().Type().Id(
 		DoSomething,
 	).Struct(
-		Id("uuid").Id("string"),
-		Id("userId").Id("string"),
+		Id("uuid").Qual(identifierTyp.Qual, identifierTyp.Id),
+		Id("userId").Qual(userTyp.Qual, userTyp.Id),
+		Id("elevationToken").Qual(elevationTokenTyp.Qual, elevationTokenTyp.Id),
 		Line(),
 		Comment("TODO: design command event/message fields (evtl. use protobuf + protoc-gen-go)"),
 	)
 }
 
-func addCommandHandleStub(f *File, DoSomething string, aggEntity string) {
-	entityImp, entityId := splitQual(aggEntity)
-	entityShort := cmdShortForm(entityId)
+func addCommandHandleStub(f *File, DoSomething string, aggEntity QualId) {
+	entityShort := cmdShortForm(aggEntity.Id)
 	f.Commentf("handle specifically performs %s", DoSomething)
 	f.Null().Func().Params(
 		Id(cmdShortForm(DoSomething)).Op("*").Id(DoSomething),
@@ -191,7 +249,7 @@ func addCommandHandleStub(f *File, DoSomething string, aggEntity string) {
 		"handle",
 	).Params(
 		Id("ctx").Qual("context", "Context"),
-		Id(entityShort).Op("*").Qual(entityImp, entityId),
+		Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id),
 	).Add(
 		Id("error"),
 	).Block(
@@ -200,93 +258,99 @@ func addCommandHandleStub(f *File, DoSomething string, aggEntity string) {
 	)
 }
 
-func addCommandIdentifierStub(f *File, DoSomething string) {
+func addCommandIdentifierStub(f *File, DoSomething string, identifierTyp QualId) {
 	f.Commentf("Identifier returns the identifier of the object on which to perform %s", DoSomething)
 	f.Null().Func().Params(
 		Id(cmdShortForm(DoSomething)).Id(DoSomething),
 	).Id(
 		"Identifier",
 	).Params().Add(
-		Id("string"),
+		Qual(identifierTyp.Qual, identifierTyp.Id),
 	).Block(
 		Return().Id(cmdShortForm(DoSomething)).Dot("uuid"),
 	)
 }
 
-func addCommandUserStub(f *File, DoSomething string) {
+func addCommandUserStub(f *File, DoSomething string, userTyp QualId) {
 	f.Commentf("User returns the identifier of the caller")
 	f.Null().Func().Params(
 		Id(cmdShortForm(DoSomething)).Id(DoSomething),
 	).Id(
 		"User",
 	).Params().Add(
-		Id("string"),
+		Qual(userTyp.Qual, userTyp.Id),
 	).Block(
 		Return().Id(cmdShortForm(DoSomething)).Dot("userId"),
 	)
 }
 
-func addCommandElevationTokenStub(f *File, DoSomething string) {
+func addCommandElevationTokenStub(f *File, DoSomething string, elevationTokenTyp QualId) {
 	f.Commentf("ElevationToken returns an elevation token in posession of the caller")
 	f.Null().Func().Params(
 		Id(cmdShortForm(DoSomething)).Id(DoSomething),
 	).Id(
 		"ElevationToken",
 	).Params().Add(
-		Id("string"),
+		Qual(elevationTokenTyp.Qual, elevationTokenTyp.Id),
 	).Block(
-		Return().Lit(``),
+		Return().Id(cmdShortForm(DoSomething)).Dot("elevationToken"),
 	)
 }
 
-func addCommandInterfaceAssertionIdentifiable(f *File, DoSomething string, identifiable string) {
+func addCommandInterfaceAssertionIdentifiable(f *File, DoSomething string, identifiable QualId) {
 	f.Commentf("Assert that %s implements Identifiable interface!", DoSomething)
-	f.Var().Id("_").Qual(splitQual(identifiable)).Op("=").Parens(Op("*").Id(DoSomething)).Call(Id("nil"))
+	f.Var().Id("_").Qual(identifiable.Qual, identifiable.Id).Op("=").Parens(Op("*").Id(DoSomething)).Call(Id("nil"))
 }
 
-func addCommandInterfaceAssertionPoliceable(f *File, DoSomething string, policeable string) {
+func addCommandInterfaceAssertionPoliceable(f *File, DoSomething string, policeable QualId) {
 	f.Commentf("Assert that %s implements Policeable interface!", DoSomething)
-	f.Var().Id("_").Qual(splitQual(policeable)).Op("=").Parens(Op("*").Id(DoSomething)).Call(Id("nil"))
+	f.Var().Id("_").Qual(policeable.Qual, policeable.Id).Op("=").Parens(Op("*").Id(DoSomething)).Call(Id("nil"))
 }
 
 // Composers ...
 
-func GenCommand(cmd, topic string, withPolicy bool, adapters []struct{ Id, Qual string }, aggEntity string) *File {
+func GenCommand(cmd, topic string, withPolicy, addWithIdentifiable bool, adapters []NamedQualId, genTyp genTyp, conf ParsedConfig) *File {
 	ret := NewFile("command")
 	ret.HeaderComment(fmt.Sprintf("Code generated by %s: DO NOT EDIT.", cmdGenCommand))
 	ret.Line()
 	ret.Commentf("Topic: %s", topic)
 	ret.Line()
-	addCommandIsIdentifiable(ret, cmd)
+	if genTyp != AddTyp || addWithIdentifiable {
+		addCommandIsIdentifiable(ret, cmd)
+	}
 	addCommandNotAuthorizedErr(ret, cmd)
-	addCommandNotIdentifiableErr(ret, cmd)
+	if genTyp != AddTyp || addWithIdentifiable {
+		addCommandNotIdentifiableErr(ret, cmd)
+	}
 	addCommandHandlerType(ret, cmd, adapters)
 	addCommandHandlerConstructor(ret, cmd, adapters)
-	addCommandFuncHandle(ret, cmd, withPolicy, aggEntity)
+	addCommandFuncHandle(ret, cmd, withPolicy, addWithIdentifiable, conf.AggEntityStruct, conf.IdentifierTyp, genTyp)
 	return ret
 }
 
-func StubCommand(cmd, topic string, withPolicy, withCommandStub bool, aggEntity, identifiable, policeable string) *File {
+func StubCommand(cmd, topic string, withPolicy, withCommandStub, addWithIdentifiable bool, genTyp genTyp, conf ParsedConfig) *File {
 	ret := NewFile("command")
 	ret.HeaderComment(fmt.Sprintf("Code generated by %s: THESE ARE STUBS, PLEASE EDIT.", cmdGenCommand))
 	ret.Line()
 	ret.Commentf("/*\n\t=== Topic: %s ===\n*/", topic)
 	ret.Line()
 	if withCommandStub {
-		addCommandTypeStub(ret, cmd)
+		addCommandTypeStub(ret, cmd, conf.IdentifierTyp, conf.UserTyp, conf.ElevationTokenTyp)
 	}
-	addCommandHandleStub(ret, cmd, aggEntity)
+	addCommandHandleStub(ret, cmd, conf.AggEntityStruct)
 	ret.Line()
 	ret.Comment("/*\n\t=> Identifiable interface implementation ...\n*/")
 	ret.Line()
-	addCommandIdentifierStub(ret, cmd)
-	addCommandInterfaceAssertionIdentifiable(ret, cmd, identifiable)
+	if genTyp != AddTyp || addWithIdentifiable {
+		addCommandIdentifierStub(ret, cmd, conf.IdentifierTyp)
+		addCommandInterfaceAssertionIdentifiable(ret, cmd, conf.IdentifiableInterface)
+	}
 	if withPolicy {
 		ret.Comment("/*\n\t=> Policeable interface implementation ...\n*/")
 		ret.Line()
-		addCommandUserStub(ret, cmd)
-		addCommandElevationTokenStub(ret, cmd)
-		addCommandInterfaceAssertionPoliceable(ret, cmd, policeable)
+		addCommandUserStub(ret, cmd, conf.UserTyp)
+		addCommandElevationTokenStub(ret, cmd, conf.ElevationTokenTyp)
+		addCommandInterfaceAssertionPoliceable(ret, cmd, conf.PoliceableInterface)
 	}
 	return ret
 }

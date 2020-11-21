@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/xoe-labs/ddd-gen/pkg/gen_app/directive"
-	// "golang.org/x/tools/go/packages"
 )
 
 // StructTag Key
@@ -25,7 +24,7 @@ var (
 
 // A simple regexp pattern to match tag values
 var (
-	newTagPattern           = regexp.MustCompile(`new`)
+	newTagPattern           = regexp.MustCompile(`new(,non-identifiable)?`)
 	delTagPattern           = regexp.MustCompile(`del`)
 	topicTagPattern         = regexp.MustCompile(`topic,([^;]+)`)
 	withoutPolicyTagPattern = regexp.MustCompile(`w/o policy`)
@@ -39,19 +38,18 @@ func generateDoc(docFile string) {
 	}
 }
 
-func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config) error {
+func generate(genPath, sourceTypeName string, struuct *types.Struct, conf directive.ParsedConfig) error {
 	log.Printf("Generating code in: %s\n", genPath)
 	log.Println("  using arguments ...")
-	log.Printf("\taggregate:    %s\n", conf.aggEntityStruct)
-	log.Printf("\tidentifiable: %s\n", conf.identifiableInterface)
-	log.Printf("\tpoliceable:   %s\n", conf.policeableInterface)
-	log.Printf("\tpolicer:      %s\n", conf.policerInterface)
-	log.Printf("\trepository:   %s\n", conf.repositoryInterface)
-	var (
-		aggEntity    string = conf.aggEntityStruct
-		identifiable string = conf.identifiableInterface
-		policeable   string = conf.policeableInterface
-	)
+	log.Printf("\taggregate:    %s.%s\n", conf.AggEntityStruct.Qual, conf.AggEntityStruct.Id)
+	log.Printf("\tidentifiable: %s.%s\n", conf.IdentifiableInterface.Qual, conf.IdentifiableInterface.Id)
+	log.Printf("\tpoliceable:   %s.%s\n", conf.PoliceableInterface.Qual, conf.PoliceableInterface.Id)
+	log.Printf("\tpolicer:      %s.%s\n", conf.PolicerInterface.Qual, conf.PolicerInterface.Id)
+	log.Printf("\trepository:   %s.%s\n", conf.RepositoryInterface.Qual, conf.RepositoryInterface.Id)
+	log.Println("  infered types ...")
+	log.Printf("\tidentiferTyp:        %s %s\n", conf.IdentifierTyp.Qual, conf.IdentifierTyp.Id)
+	log.Printf("\tuserTyp:             %s %s\n", conf.UserTyp.Qual, conf.UserTyp.Id)
+	log.Printf("\televationTokenTyp:   %s %s\n", conf.ElevationTokenTyp.Qual, conf.ElevationTokenTyp.Id)
 
 	// 2. iterate over  fields
 	for i := 0; i < struuct.NumFields(); i++ {
@@ -59,20 +57,21 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 		tag := reflect.StructTag(struuct.Tag(i))
 
 		var (
-			cmd             string
-			topic           string
-			withPolicy      bool
-			withCommandStub bool
-			adapters        []struct{ Id, Qual string }
-			genNew          bool
-			genDel          bool
+			cmd                 string
+			topic               string
+			withPolicy          bool
+			withCommandStub     bool
+			newWithIdentifiable bool
+			adapters            []directive.NamedQualId
+			genNew              bool
+			genDel              bool
 		)
 		cmd = field.Name()
 		withPolicy = true
 		withCommandStub = true
-		adapters = []struct{ Id, Qual string }{}
+		newWithIdentifiable = true
 
-		// 2.2 match and classify fields according to tags
+		// match and classify fields according to tags
 		if tagKeyV, ok := tag.Lookup(tagKey); ok {
 			if matches := topicTagPattern.FindStringSubmatch(tagKeyV); matches != nil {
 				topic = matches[1]
@@ -82,6 +81,9 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 			}
 			if matches := newTagPattern.FindStringSubmatch(tagKeyV); matches != nil {
 				genNew = true
+				if len(matches) > 1 && matches[1] != "" {
+					newWithIdentifiable = false
+				}
 			}
 			if matches := delTagPattern.FindStringSubmatch(tagKeyV); matches != nil {
 				genDel = true
@@ -89,7 +91,10 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 			if matches := adaptersTagPattern.FindStringSubmatch(tagKeyV); matches != nil {
 				for _, m := range matches[1:] {
 					ss := strings.Split(m, ":")
-					adapters = append(adapters, struct{ Id, Qual string }{Id: ss[0], Qual: ss[1]})
+					if !isValidQualId(ss[1]) {
+						return fmt.Errorf("'adapters' tag value %s:%s does not contain a valid full qualifier", ss[0], ss[1])
+					}
+					adapters = append(adapters, directive.NamedQualId{Name: ss[0], QualId: splitQual(ss[1])})
 				}
 			}
 		}
@@ -100,9 +105,9 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 			topic = getLastTitledWord(cmd)
 		}
 		if withPolicy == true {
-			adapters = append(adapters, struct{ Id, Qual string }{Id: "pol", Qual: conf.policerInterface})
+			adapters = append(adapters, directive.NamedQualId{Name: "pol", QualId: conf.PolicerInterface})
 		}
-		adapters = append(adapters, struct{ Id, Qual string }{Id: "agg", Qual: conf.repositoryInterface})
+		adapters = append(adapters, directive.NamedQualId{Name: "agg", QualId: conf.RepositoryInterface})
 
 		topic = strings.Title(topic)
 		log.Printf("topic %s -> %s: generating handler and stub\n", topic, cmd)
@@ -121,13 +126,21 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf Config
 				return err
 			}
 		}
-		gf := directive.GenCommand(cmd, topic, withPolicy, adapters, aggEntity)
+
+		genTyp := directive.UpdTyp
+		if genNew {
+			genTyp = directive.AddTyp
+		} else if genDel {
+			genTyp = directive.RemTyp
+		}
+
+		gf := directive.GenCommand(cmd, topic, withPolicy, newWithIdentifiable, adapters, genTyp, conf)
 		if err := gf.Save(genFile); err != nil {
 			return err
 		}
 
 		if !fileExists(stubFile) {
-			sf := directive.StubCommand(cmd, topic, withPolicy, withCommandStub, aggEntity, identifiable, policeable)
+			sf := directive.StubCommand(cmd, topic, withPolicy, withCommandStub, newWithIdentifiable, genTyp, conf)
 			if err := sf.Save(stubFile); err != nil {
 				return err
 			}

@@ -1,8 +1,8 @@
-
 package domain
 
 import (
 	"context"
+	"github.com/satori/go.uuid"
 	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
 )
 
@@ -11,5 +11,5 @@ type Repository interface {
 }
 
 type Identifiable interface {
-	Identifier() string
+	Identifier() uuid.UUID
 }
