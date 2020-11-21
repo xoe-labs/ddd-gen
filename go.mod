@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/dave/jennifer v1.4.1
+	github.com/hashicorp/errwrap v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/cobra v1.1.1
