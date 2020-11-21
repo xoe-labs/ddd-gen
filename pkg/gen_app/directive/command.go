@@ -109,8 +109,82 @@ func addCommandHandlerConstructor(f *File, DoSomething string, adapters []NamedQ
 		})
 	})
 }
-func addCommandFuncHandle(f *File, DoSomething string, withPolicy, addWithIdentifiable bool, aggEntity, identifierTyp QualId, genTyp genTyp) {
-	needReturnIdentifer := (genTyp == AddTyp && !addWithIdentifiable)
+func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntity QualId, genTyp genTyp) {
+	entityShort := cmdShortForm(aggEntity.Id)
+	f.Commentf("Handle generically performs %s", DoSomething)
+	f.Func().Params(
+		Id("h").Id(DoSomething+"Handler"),
+	).Id(
+		"Handle",
+	).Params(
+		Id("ctx").Qual("context", "Context"),
+		Id(cmdShortForm(DoSomething)).Id(DoSomething),
+	).Parens(
+		List(
+			Id("error"),
+		),
+	).BlockFunc(func(g *Group) {
+		g.If(
+			Op("!").Id(cmdShortForm(DoSomething)).Dot("IsIdentifiable").Call(),
+		).Block(
+			Return().Id("Err" + DoSomething + "NotIdentifiable"),
+		)
+		g.List(
+			Id("err"),
+		).Op(":=").Id("h").Dot("agg").Dot(
+			string(genTyp),
+		).Call(
+			Id("ctx"),
+			Id(cmdShortForm(DoSomething)),
+			Func().Params(
+				Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id),
+			).Parens(
+				List(
+					Id("error"),
+				),
+			).BlockFunc(func(g *Group) {
+				if withPolicy {
+					g.If(
+						Id("ok").Op(":=").Id("h").Dot("pol").Dot(
+							"Can",
+						).Call(
+							Id("ctx"),
+							Id(cmdShortForm(DoSomething)),
+							Lit(DoSomething),
+							Qual("json", "Marshal").Call(Id(entityShort)),
+						),
+						Op("!").Id("ok"),
+					).Block(
+						Return().Id("ErrNotAuthorizedTo" + DoSomething),
+					)
+				}
+				g.If(
+					Id("err").Op(":=").Id(cmdShortForm(DoSomething)).Dot(
+						"handle",
+					).Call(
+						Id("ctx"),
+						Id(entityShort),
+					),
+					Id("err").Op("!=").Id("nil"),
+				).Block(
+					Return().Id("err"),
+				)
+				g.Return().Id("nil")
+			}),
+		)
+		g.If(
+			Id("err").Op("!=").Id("nil"),
+		).Block(
+			Return().Id("err"),
+		)
+		g.Return(
+			g.Id("nil"),
+		)
+	})
+}
+
+func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIdentifiable bool, aggEntity, identifierTyp QualId, genTyp genTyp) {
+	needReturnIdentifer := (!addWithIdentifiable)
 	entityShort := cmdShortForm(aggEntity.Id)
 	f.Commentf("Handle generically performs %s", DoSomething)
 	f.Func().Params(
@@ -128,69 +202,70 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy, addWithIdenti
 			g.Id("error")
 		}),
 	).BlockFunc(func(g *Group) {
-		if genTyp != AddTyp || addWithIdentifiable {
+		if addWithIdentifiable {
 			g.If(
 				Op("!").Id(cmdShortForm(DoSomething)).Dot("IsIdentifiable").Call(),
 			).Block(
 				Return().Id("Err" + DoSomething + "NotIdentifiable"),
 			)
 		}
-		g.IfFunc(func(g *Group) {
-			g.ListFunc(func(g *Group) {
-				if genTyp == AddTyp {
-					if needReturnIdentifer {
-						g.Id("identifier")
-					} else {
-						g.Id("_")
-					}
-				}
-				g.Id("err")
-			}).Op(":=").Id("h").Dot("agg").Dot(
-				string(genTyp),
-			).Call(
-				Id("ctx"),
-				Id(cmdShortForm(DoSomething)),
-				Func().Params(
+		g.ListFunc(func(g *Group) {
+			if needReturnIdentifer {
+				g.Id("identifier")
+			} else {
+				g.Id("_")
+			}
+			g.Id("err")
+		}).Op(":=").Id("h").Dot("agg").Dot(
+			string(genTyp),
+		).Call(
+			Id("ctx"),
+			Func().Params().Parens(
+				List(
 					Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id),
-				).Parens(
-					ListFunc(func(g *Group) {
-						if genTyp == AddTyp {
-							g.Qual(identifierTyp.Qual, identifierTyp.Id)
-						}
-						g.Id("error")
-					}),
-				).BlockFunc(func(g *Group) {
-					if withPolicy {
-						g.If(
-							Id("ok").Op(":=").Id("h").Dot("pol").Dot(
-								"Can",
-							).Call(
-								Id("ctx"),
-								Id(cmdShortForm(DoSomething)),
-								Lit(DoSomething),
-								Qual("json", "Marshal").Call(Id(entityShort)),
-							),
-							Op("!").Id("ok"),
-						).Block(
-							Return().Id("ErrNotAuthorizedTo" + DoSomething),
-						)
-					}
+					Id("err").Id("error"),
+				),
+			).BlockFunc(func(g *Group) {
+				g.If(
+					List(
+						Id("err"),
+					).Op(":=").Id(cmdShortForm(DoSomething)).Dot(
+						"handle",
+					).Call(
+						Id("ctx"),
+						Id(entityShort),
+					),
+					Id("err").Op("!=").Id("nil"),
+				).Block(
+					Return(
+						Id("nil"), Id("err"),
+					),
+				)
+				if withPolicy {
 					g.If(
-						Id("err").Op(":=").Id(cmdShortForm(DoSomething)).Dot(
-							"handle",
+						Id("ok").Op(":=").Id("h").Dot("pol").Dot(
+							"Can",
 						).Call(
 							Id("ctx"),
-							Id(entityShort),
+							Id(cmdShortForm(DoSomething)),
+							Lit(DoSomething),
+							Qual("json", "Marshal").Call(Id(entityShort)),
 						),
-						Id("err").Op("!=").Id("nil"),
+						Op("!").Id("ok"),
 					).Block(
-						Return().Id("err"),
+						Return(
+							Id("nil"), Id("ErrNotAuthorizedTo"+DoSomething),
+						),
 					)
-					g.Return().Id("nil")
-				}),
-			)
-			g.Id("err").Op("!=").Id("nil")
-		}).BlockFunc(func(g *Group) {
+				}
+				g.Return(
+					Id(entityShort), Id("nil"),
+				)
+			}),
+		)
+		g.If(
+			Id("err").Op("!=").Id("nil"),
+		).BlockFunc(func(g *Group) {
 			if needReturnIdentifer {
 				g.Return(
 					Id("identifier"),
@@ -328,7 +403,11 @@ func GenCommand(cmd, topic string, withPolicy, addWithIdentifiable bool, adapter
 	}
 	addCommandHandlerType(ret, cmd, adapters)
 	addCommandHandlerConstructor(ret, cmd, adapters)
-	addCommandFuncHandle(ret, cmd, withPolicy, addWithIdentifiable, conf.AggEntityStruct, conf.IdentifierTyp, genTyp)
+	if genTyp != AddTyp {
+		addCommandFuncHandle(ret, cmd, withPolicy, conf.AggEntityStruct, genTyp)
+	} else {
+		addCommandFuncHandleNew(ret, cmd, withPolicy, addWithIdentifiable, conf.AggEntityStruct, conf.IdentifierTyp, genTyp)
+	}
 	return ret
 }
 
