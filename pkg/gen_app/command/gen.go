@@ -62,7 +62,8 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf direct
 			withPolicy          bool
 			withCommandStub     bool
 			newWithIdentifiable bool
-			adapters            []directive.NamedQualId
+			allAdapters         []directive.NamedQualId
+			extraAdapters       []directive.NamedQualId
 			genNew              bool
 			genDel              bool
 		)
@@ -94,7 +95,8 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf direct
 					if !isValidQualId(ss[1]) {
 						return fmt.Errorf("'adapters' tag value %s:%s does not contain a valid full qualifier", ss[0], ss[1])
 					}
-					adapters = append(adapters, directive.NamedQualId{Name: ss[0], QualId: splitQual(ss[1])})
+					allAdapters = append(allAdapters, directive.NamedQualId{Name: ss[0], QualId: splitQual(ss[1])})
+					extraAdapters = append(extraAdapters, directive.NamedQualId{Name: ss[0], QualId: splitQual(ss[1])})
 				}
 			}
 		}
@@ -105,9 +107,9 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf direct
 			topic = getLastTitledWord(cmd)
 		}
 		if withPolicy == true {
-			adapters = append(adapters, directive.NamedQualId{Name: "pol", QualId: conf.PolicerInterface})
+			allAdapters = append(allAdapters, directive.NamedQualId{Name: "pol", QualId: conf.PolicerInterface})
 		}
-		adapters = append(adapters, directive.NamedQualId{Name: "agg", QualId: conf.RepositoryInterface})
+		allAdapters = append(allAdapters, directive.NamedQualId{Name: "agg", QualId: conf.RepositoryInterface})
 
 		topic = strings.Title(topic)
 		log.Printf("topic %s -> %s: generating handler and stub\n", topic, cmd)
@@ -134,13 +136,13 @@ func generate(genPath, sourceTypeName string, struuct *types.Struct, conf direct
 			genTyp = directive.RemTyp
 		}
 
-		gf := directive.GenCommand(cmd, topic, withPolicy, newWithIdentifiable, adapters, genTyp, conf)
+		gf := directive.GenCommand(cmd, topic, withPolicy, newWithIdentifiable, allAdapters, extraAdapters, genTyp, conf)
 		if err := gf.Save(genFile); err != nil {
 			return err
 		}
 
 		if !fileExists(stubFile) {
-			sf := directive.StubCommand(cmd, topic, withPolicy, withCommandStub, newWithIdentifiable, genTyp, conf)
+			sf := directive.StubCommand(cmd, topic, withPolicy, withCommandStub, newWithIdentifiable, extraAdapters, genTyp, conf)
 			if err := sf.Save(stubFile); err != nil {
 				return err
 			}
