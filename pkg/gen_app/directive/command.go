@@ -144,6 +144,19 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntit
 				),
 			).BlockFunc(func(g *Group) {
 				if withPolicy {
+					g.List(
+						Id("data"),
+						Id("err"),
+					).Op(":=").Qual("encoding/json", "Marshal").Call(Id(entityShort))
+					g.If(
+						Id("err").Op("!=").Id("nil"),
+					).Block(
+						Panic(
+							Id("err"),
+						).Comment(
+							"the domain shall always be consistent!",
+						),
+					)
 					g.If(
 						Id("ok").Op(":=").Id("h").Dot("pol").Dot(
 							"Can",
@@ -151,7 +164,7 @@ func addCommandFuncHandle(f *File, DoSomething string, withPolicy bool, aggEntit
 							Id("ctx"),
 							Id(cmdShortForm(DoSomething)),
 							Lit(DoSomething),
-							Qual("json", "Marshal").Call(Id(entityShort)),
+							Id("data"),
 						),
 						Op("!").Id("ok"),
 					).Block(
@@ -248,6 +261,19 @@ func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIde
 					),
 				)
 				if withPolicy {
+					g.List(
+						Id("data"),
+						Id("err"),
+					).Op(":=").Qual("encoding/json", "Marshal").Call(Id(entityShort))
+					g.If(
+						Id("err").Op("!=").Id("nil"),
+					).Block(
+						Panic(
+							Id("err"),
+						).Comment(
+							"the domain shall always be consistent!",
+						),
+					)
 					g.If(
 						Id("ok").Op(":=").Id("h").Dot("pol").Dot(
 							"Can",
@@ -255,7 +281,7 @@ func addCommandFuncHandleNew(f *File, DoSomething string, withPolicy, addWithIde
 							Id("ctx"),
 							Id(cmdShortForm(DoSomething)),
 							Lit(DoSomething),
-							Qual("json", "Marshal").Call(Id(entityShort)),
+							Id("data"),
 						),
 						Op("!").Id("ok"),
 					).Block(
