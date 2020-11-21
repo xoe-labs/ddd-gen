@@ -159,18 +159,24 @@ func addCommandFuncHandle(f *File,
 		).Block(
 			Return().Id("Err" + DoSomething + "NotIdentifiable"),
 		)
+		g.Var().Id("innerErr").Id("error")
+		g.Var().Id("repoErr").Id("error")
 		g.List(
-			Id("err"),
-		).Op(":=").Id("h").Dot("agg").Dot(
+			Id("repoErr"),
+		).Op("=").Id("h").Dot("agg").Dot(
 			string(genTyp),
 		).Call(
 			Id("ctx"),
 			Id(cmdShortForm(DoSomething)),
-			Func().Params(
-				Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id),
-			).Parens(
+			Func().ParamsFunc(func(g *Group) {
+				if genTyp == UpdTyp {
+					g.Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id)
+				} else {
+					g.Id(entityShort).Qual(aggEntity.Qual, aggEntity.Id)
+				}
+			}).Parens(
 				List(
-					Id("error"),
+					Id("bool"),
 				),
 			).BlockFunc(func(g *Group) {
 				if withPolicy {
@@ -198,7 +204,8 @@ func addCommandFuncHandle(f *File,
 						),
 						Op("!").Id("ok"),
 					).Block(
-						Return().Id("ErrNotAuthorizedTo" + DoSomething),
+						Id("innerErr").Op("=").Id("ErrNotAuthorizedTo"+DoSomething),
+						Return().Id("false"),
 					)
 				}
 				g.If(
@@ -213,42 +220,28 @@ func addCommandFuncHandle(f *File,
 					}),
 					Id("err").Op("!=").Id("nil"),
 				).Block(
-					Return().Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+					Id("innerErr").Op("=").Qual("github.com/hashicorp/errwrap", "Wrap").Call(
 						Id("Err"+DoSomething+"FailedInDomain"),
 						Id("err"),
 					),
+					Return().Id("false"),
 				)
-				g.Return().Id("nil")
+				g.Return().Id("true")
 			}),
 		)
 		g.If(
-			Id("err").Op("!=").Id("nil"),
-		).BlockFunc(func(g *Group) {
-			if withPolicy {
-				g.If(
-					Qual("github.com/hashicorp/errwrap", "Contains").Call(
-						Id("err"),
-						Lit("ErrNotAuthorizedTo"+DoSomething),
-					),
-				).Block(
-					Return().Id("err"),
-				)
-			}
-			g.If(
-				Qual("github.com/hashicorp/errwrap", "Contains").Call(
-					Id("err"),
-					Lit("Err"+DoSomething+"FailedInDomain"),
-				),
-			).Block(
-				Return().Id("err"),
-			)
-			g.Return(
-				Qual("github.com/hashicorp/errwrap", "Wrap").Call(
-					Lit("Err"+DoSomething+"FailedInRepository"),
-					Id("err"),
-				),
-			)
-		})
+			Id("innerErr").Op("!=").Id("nil"),
+		).Block(
+			Return().Id("innerErr"),
+		)
+		g.If(
+			Id("repoErr").Op("!=").Id("nil"),
+		).Block(
+			Return().Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+				Id("Err"+DoSomething+"FailedInRepository"),
+				Id("repoErr"),
+			),
+		)
 		g.Return(
 			Id("nil"),
 		)
@@ -288,13 +281,15 @@ func addCommandFuncHandleNew(f *File,
 				Return().Id("Err" + DoSomething + "NotIdentifiable"),
 			)
 		}
+		g.Var().Id("innerErr").Id("error")
+		g.Var().Id("repoErr").Id("error")
 		g.ListFunc(func(g *Group) {
 			if needReturnIdentifer {
 				g.Id("identifier")
 			} else {
 				g.Id("_")
 			}
-			g.Id("err")
+			g.Id("repoErr")
 		}).Op(":=").Id("h").Dot("agg").Dot(
 			string(genTyp),
 		).Call(
@@ -302,7 +297,6 @@ func addCommandFuncHandleNew(f *File,
 			Func().Params().Parens(
 				List(
 					Id(entityShort).Op("*").Qual(aggEntity.Qual, aggEntity.Id),
-					Id("err").Id("error"),
 				),
 			).BlockFunc(func(g *Group) {
 				g.If(
@@ -319,10 +313,11 @@ func addCommandFuncHandleNew(f *File,
 					}),
 					Id("err").Op("!=").Id("nil"),
 				).Block(
-					Return().Qual("github.com/hashicorp/errwrap", "Wrap").Call(
+					Id("innerErr").Op("=").Qual("github.com/hashicorp/errwrap", "Wrap").Call(
 						Id("Err"+DoSomething+"FailedInDomain"),
 						Id("err"),
 					),
+					Return().Id("nil"),
 				)
 				if withPolicy {
 					g.List(
@@ -349,66 +344,45 @@ func addCommandFuncHandleNew(f *File,
 						),
 						Op("!").Id("ok"),
 					).Block(
-						Return(
-							Id("nil"), Id("ErrNotAuthorizedTo"+DoSomething),
-						),
+						Id("innerErr").Op("=").Id("ErrNotAuthorizedTo"+DoSomething),
+						Return().Id("nil"),
 					)
 				}
 				g.Return(
-					Id(entityShort), Id("nil"),
+					Id(entityShort),
 				)
 			}),
 		)
 		g.If(
-			Id("err").Op("!=").Id("nil"),
-		).BlockFunc(func(g *Group) {
-			if withPolicy {
-				g.If(
-					Qual("github.com/hashicorp/errwrap", "Contains").Call(
-						Id("err"),
-						Lit("ErrNotAuthorizedTo"+DoSomething),
-					),
-				).Block(
-					ReturnFunc(func(g *Group) {
-						if needReturnIdentifer {
-							g.Id("identifier")
-							g.Id("err")
-						} else {
-							g.Id("err")
-						}
-					}),
-				)
-			}
-			g.If(
-				Qual("github.com/hashicorp/errwrap", "Contains").Call(
-					Id("err"),
-					Lit("Err"+DoSomething+"FailedInDomain"),
-				),
-			).Block(
-				ReturnFunc(func(g *Group) {
-					if needReturnIdentifer {
-						g.Id("identifier")
-						g.Id("err")
-					} else {
-						g.Id("err")
-					}
-				}),
-			)
-			g.ReturnFunc(func(g *Group) {
+			Id("innerErr").Op("!=").Id("nil"),
+		).Block(
+			ReturnFunc(func(g *Group) {
+				if needReturnIdentifer {
+					g.Id("identifier")
+					g.Id("innerErr")
+				} else {
+					g.Id("innerErr")
+				}
+			}),
+		)
+		g.If(
+			Id("repoErr").Op("!=").Id("nil"),
+		).Block(
+			ReturnFunc(func(g *Group) {
 				if needReturnIdentifer {
 					g.Id("identifier")
 					g.Qual("github.com/hashicorp/errwrap", "Wrap").Call(
-						Lit("Err"+DoSomething+"FailedInRepository"),
-						Id("err"),
+						Id("Err"+DoSomething+"FailedInRepository"),
+						Id("repoErr"),
 					)
 				} else {
 					g.Qual("github.com/hashicorp/errwrap", "Wrap").Call(
-						Lit("Err"+DoSomething+"FailedInRepository"),
-						Id("err"),
+						Id("Err"+DoSomething+"FailedInRepository"),
+						Id("repoErr"),
 					)
 				}
-			})
-		})
+			}),
+		)
 		g.ReturnFunc(func(g *Group) {
 			if needReturnIdentifer {
 				g.Id("identifier")
