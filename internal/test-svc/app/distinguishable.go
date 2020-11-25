@@ -4,7 +4,7 @@ package app
 // application implements OffersDistinguishable and thereby offers storage adapter and external consumers a common language to reason about identity
 // TODO: implement OffersDistinguishable
 type OffersDistinguishable interface {
-	RequiresDistinguishableAssertable
+	RequiresDistinguishableAsserter
 	// Identifier knows how to identify OffersDistinguishable
 	// TODO: adapt return type to your needs
 	Identifier() string

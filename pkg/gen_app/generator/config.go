@@ -12,9 +12,9 @@ type NamedQualId struct {
 
 // Adapters provide interfaces to the outer world
 type Adapters struct {
-	StorageRAdapter    NamedQualId
-	StorageRWAdapter   NamedQualId
-	PolicyAdapter      NamedQualId
+	StorageR           NamedQualId
+	StorageRW          NamedQualId
+	Policer            NamedQualId
 	DomServiceAdapters []NamedQualId
 }
 

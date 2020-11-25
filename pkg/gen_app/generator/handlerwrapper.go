@@ -66,9 +66,9 @@ func addCommandHandlerWrapperType(f *File,
 	f.Null().Type().Id(
 		DoSomething + "HandlerWrapper",
 	).StructFunc(func(g *Group) {
-		g.Id(adapters.StorageRWAdapter.Name).Qual(adapters.StorageRWAdapter.Qual, adapters.StorageRWAdapter.Id)
+		g.Id(adapters.StorageRW.Name).Qual(adapters.StorageRW.Qual, adapters.StorageRW.Id)
 		if assertAuthorization {
-			g.Id(adapters.PolicyAdapter.Name).Qual(adapters.PolicyAdapter.Qual, adapters.PolicyAdapter.Id)
+			g.Id(adapters.Policer.Name).Qual(adapters.Policer.Qual, adapters.Policer.Id)
 		}
 		for _, a := range adapters.DomServiceAdapters {
 			g.Id(a.Name).Qual(a.Qual, a.Id)
@@ -79,9 +79,9 @@ func addCommandHandlerWrapperConstructor(f *File,
 	DoSomething string,
 	assertAuthorization bool,
 	adapters Adapters) {
-	usedAdapters := append(adapters.DomServiceAdapters, adapters.StorageRWAdapter)
+	usedAdapters := append(adapters.DomServiceAdapters, adapters.StorageRW)
 	if assertAuthorization {
-		usedAdapters = append(usedAdapters, adapters.PolicyAdapter)
+		usedAdapters = append(usedAdapters, adapters.Policer)
 	}
 	f.Commentf("New%sHandlerWrapper returns %sHandlerWrapper", DoSomething, DoSomething)
 	f.Func().Id(
@@ -140,7 +140,7 @@ func addCommandFuncHandle(f *File,
 	).BlockFunc(func(g *Group) {
 		g.Comment("assert that target is distinguishable")
 		g.If(
-			Op("!").Id("target").Dot(TargetDistinguishableAssertMethodName).Call(),
+			Op("!").Id("target").Dot(DistinguishableAsserterMethod).Call(),
 		).Block(
 			Return().Id(
 				"Err" + DoSomething + "HasNoTarget",
@@ -151,8 +151,8 @@ func addCommandFuncHandle(f *File,
 		g.List(
 			Id(entityShort),
 			Id("loadErr"),
-		).Op(":=").Id("h").Dot(adapters.StorageRWAdapter.Name).Dot(
-			StorageLoadMethodName,
+		).Op(":=").Id("h").Dot(adapters.StorageRW.Name).Dot(
+			StorageLoadMethod,
 		).Call(
 			Id("ctx"),
 			Id("target"),
@@ -174,8 +174,8 @@ func addCommandFuncHandle(f *File,
 			g.If(
 				Id(
 					"ok",
-				).Op(":=").Id("h").Dot(adapters.PolicyAdapter.Name).Dot(
-					PolicyAssertionMethodName,
+				).Op(":=").Id("h").Dot(adapters.Policer.Name).Dot(
+					PolicerMethod,
 				).Call(
 					Id("ctx"),
 					Id("actor"),
@@ -196,7 +196,7 @@ func addCommandFuncHandle(f *File,
 			Id("ok").Op(":=").Id(
 				cmdShortForm(DoSomething),
 			).Dot(
-				CmdHandleMethodName,
+				CommandHandlerMethod,
 			).CallFunc(func(g *Group) {
 				g.Id("ctx")
 				g.Id(entityShort)
@@ -215,7 +215,7 @@ func addCommandFuncHandle(f *File,
 				).Op(":=").Range().Id(
 					cmdShortForm(DoSomething),
 				).Dot(
-					ErrorKeeperCollectErrorsMethodName,
+					ErrorKeeperMethod,
 				).Call(),
 			).Block(
 				If(Id("i")).Op("==").Lit(0).Block(
@@ -239,8 +239,8 @@ func addCommandFuncHandle(f *File,
 			g.Comment("save domain facts to storage")
 			g.Id(
 				"saveErr",
-			).Op(":=").Id("h").Dot(adapters.StorageRWAdapter.Name).Dot(
-				StorageSaveFactsMethodName,
+			).Op(":=").Id("h").Dot(adapters.StorageRW.Name).Dot(
+				StorageSaveFactsMethod,
 			).Call(
 				Id("ctx"),
 				Id("target"),
@@ -261,8 +261,8 @@ func addCommandFuncHandle(f *File,
 			g.Comment("save entity to storage")
 			g.Id(
 				"saveErr",
-			).Op(":=").Id("h").Dot(adapters.StorageRWAdapter.Name).Dot(
-				StorageSaveMethodName,
+			).Op(":=").Id("h").Dot(adapters.StorageRW.Name).Dot(
+				StorageSaveMethod,
 			).Call(
 				Id("ctx"),
 				Id("target"),

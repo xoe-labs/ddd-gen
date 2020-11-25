@@ -37,49 +37,49 @@ func GenAppIfacesDoc(pkgName string) *File {
 
 func genIfaceStorageReader(f *File, entity QualId) (typIdent string) {
 	entityShort := cmdShortForm(entity.Id)
-	f.Commentf("%s knows how load %s entity", StorageReaderIdent, entity.Id)
+	f.Commentf("%s knows how load %s entity", StorageReader, entity.Id)
 	f.Comment("application requires storage adapter to implement this interface.")
 	f.Type().Id(
-		StorageReaderIdent,
+		StorageReader,
 	).Interface(
 		Commentf(
-			"%s knows how to load %s entity", StorageLoadMethodName, entity.Id,
+			"%s knows how to load %s entity", StorageLoadMethod, entity.Id,
 		),
 		Id(
-			StorageLoadMethodName,
+			StorageLoadMethod,
 		).Params(
 			Id("ctx").Qual("context", "Context"),
 			Id("target").Id(
-				TargetDistinguishableIdent,
+				Distinguishable,
 			),
 		).Params(
 			Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
 			Id("err").Id("error"),
 		),
 	)
-	return StorageReaderIdent
+	return StorageReader
 }
 
 func genIfaceStorageWriterReader(f *File, entity QualId, useFactStorage bool) (typIdent string) {
 	entityShort := cmdShortForm(entity.Id)
-	f.Commentf("%s knows how load and persist %s entity", StorageWriterReaderIdent, entity.Id)
+	f.Commentf("%s knows how load and persist %s entity", StorageWriterReader, entity.Id)
 	f.Comment("application requires storage adapter to implement this interface.")
 	f.Type().Id(
-		StorageWriterReaderIdent,
+		StorageWriterReader,
 	).InterfaceFunc(func(g *Group) {
 		g.Id(
-			StorageReaderIdent,
+			StorageReader,
 		)
 		if useFactStorage {
 			g.Commentf(
-				"%s knows how to persist domain facts on %s entity", StorageSaveFactsMethodName, entity.Id,
+				"%s knows how to persist domain facts on %s entity", StorageSaveFactsMethod, entity.Id,
 			)
 			g.Id(
-				StorageSaveFactsMethodName,
+				StorageSaveFactsMethod,
 			).Params(
 				Id("ctx").Qual("context", "Context"),
 				Id("target").Id(
-					TargetDistinguishableIdent,
+					Distinguishable,
 				),
 				Id("fk").Id(FactKeeper),
 			).Params(
@@ -87,14 +87,14 @@ func genIfaceStorageWriterReader(f *File, entity QualId, useFactStorage bool) (t
 			)
 		} else {
 			g.Commentf(
-				"%s knows how to persist %s entity", StorageSaveMethodName, entity.Id,
+				"%s knows how to persist %s entity", StorageSaveMethod, entity.Id,
 			)
 			g.Id(
-				StorageSaveMethodName,
+				StorageSaveMethod,
 			).Params(
 				Id("ctx").Qual("context", "Context"),
 				Id("target").Id(
-					TargetDistinguishableIdent,
+					Distinguishable,
 				),
 				Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
 			).Params(
@@ -102,21 +102,21 @@ func genIfaceStorageWriterReader(f *File, entity QualId, useFactStorage bool) (t
 			)
 		}
 	})
-	return StorageWriterReaderIdent
+	return StorageWriterReader
 }
 
 func GenIfacePolicer(entity QualId, pkgName string) (f *File, typIdent string) {
 	entityShort := cmdShortForm(entity.Id)
 	f = NewFile(pkgName)
-	f.Commentf("%s knows to make decisions on access policy", PolicyAdapterIfaceIdent)
+	f.Commentf("%s knows to make decisions on access policy", Policer)
 	f.Comment("application requires policy adapter to implement this interface.")
 	f.Type().Id(
-		PolicyAdapterIfaceIdent,
+		Policer,
 	).Interface(
 		Id("Can").Params(
 			Id("ctx").Qual("context", "Context"),
 			Id("p").Id(
-				PoliceableIdent,
+				Policeable,
 			),
 			Id("action").Id("string"),
 			Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
@@ -124,7 +124,7 @@ func GenIfacePolicer(entity QualId, pkgName string) (f *File, typIdent string) {
 			Id("bool"),
 		),
 	)
-	return f, PolicyAdapterIfaceIdent
+	return f, Policer
 }
 
 func genIfaceCommandHandler(f *File, entity QualId) {
@@ -134,10 +134,10 @@ func genIfaceCommandHandler(f *File, entity QualId) {
 		CommandHandler,
 	).Interface(
 		Commentf(
-			"%s handles the command on %s entity", CmdHandleMethodName, entity.Id,
+			"%s handles the command on %s entity", CommandHandlerMethod, entity.Id,
 		),
 		Id(
-			CmdHandleMethodName,
+			CommandHandlerMethod,
 		).Params(
 			Id("ctx").Qual("context", "Context"),
 			Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
@@ -154,10 +154,10 @@ func genIfaceErrorKeeper(f *File) {
 		ErrorKeeper,
 	).Interface(
 		Commentf(
-			"%s knows how to return collected domain errors", ErrorKeeperCollectErrorsMethodName,
+			"%s knows how to return collected domain errors", ErrorKeeperMethod,
 		),
 		Id(
-			ErrorKeeperCollectErrorsMethodName,
+			ErrorKeeperMethod,
 		).Params().Params(
 			Index().Id("error"),
 		),
@@ -170,10 +170,10 @@ func genIfaceFactKeeper(f *File) {
 		FactKeeper,
 	).Interface(
 		Commentf(
-			"%s knows how to return domain facts", FactKeeperCollectFactsMethodName,
+			"%s knows how to return domain facts", FactKeeperMethod,
 		),
 		Id(
-			FactKeeperCollectFactsMethodName,
+			FactKeeperMethod,
 		).Params().Params(
 			Index().Interface(),
 		),
@@ -220,21 +220,21 @@ func genIfaceDomainCommandHandlerWithFacts(f *File, entity QualId) (typIdent str
 	return DomainCommandHandler
 }
 
-func GenIfaceDistinguishableAssertable(pkgName string) (f *File, typIdent string) {
+func GenIfaceDistinguishableAsserter(pkgName string) (f *File, typIdent string) {
 	f = NewFile(pkgName)
-	f.Commentf("%s can be asserted to be distinguishable", TargetDistinguishableAssertableIdent)
-	f.Commentf("application requires to be able to assert that %s can actually be identified", TargetDistinguishableIdent)
+	f.Commentf("%s can be asserted to be distinguishable", DistinguishableAsserter)
+	f.Commentf("application requires to be able to assert that %s can actually be identified", Distinguishable)
 	f.Type().Id(
-		TargetDistinguishableAssertableIdent,
+		DistinguishableAsserter,
 	).Interface(
-		Commentf("%s knows how to assert that a potential %s can be actually identified", TargetDistinguishableAssertMethodName, TargetDistinguishableIdent),
+		Commentf("%s knows how to assert that a potential %s can be actually identified", DistinguishableAsserterMethod, Distinguishable),
 		Id(
-			TargetDistinguishableAssertMethodName,
+			DistinguishableAsserterMethod,
 		).Params().Params(
 			Id("bool"),
 		),
 	)
-	return f, TargetDistinguishableAssertableIdent
+	return f, DistinguishableAsserter
 }
 
 func GenStorageIface(entity QualId, useFactStorage bool, pkgName string) (f *File, storageReaderTypeIdent, storageReaderWriterTypeIdent string) {
@@ -258,31 +258,31 @@ func GenCmdHandlerIface(entity QualId, useFactStorage bool, pkgName string) (f *
 
 func GenIfaceDistinguishable(pkgName string) (f *File, typIdent string) {
 	f = NewFile(pkgName)
-	f.Commentf("%s can be identified", TargetDistinguishableIdent)
-	f.Commentf("application implements %s and thereby offers storage adapter and external consumers a common language to reason about identity", TargetDistinguishableIdent)
-	f.Commentf("TODO: implement %s", TargetDistinguishableIdent)
+	f.Commentf("%s can be identified", Distinguishable)
+	f.Commentf("application implements %s and thereby offers storage adapter and external consumers a common language to reason about identity", Distinguishable)
+	f.Commentf("TODO: implement %s", Distinguishable)
 	f.Type().Id(
-		TargetDistinguishableIdent,
+		Distinguishable,
 	).Interface(
-		Id(TargetDistinguishableAssertableIdent),
-		Commentf("%s knows how to identify %s", TargetDistinguishableIdMethod, TargetDistinguishableIdent),
+		Id(DistinguishableAsserter),
+		Commentf("%s knows how to identify %s", DistinguishableMethod, Distinguishable),
 		Comment("TODO: adapt return type to your needs "),
 		Id(
-			TargetDistinguishableIdMethod,
+			DistinguishableMethod,
 		).Params().Params(
 			Id("string"),
 		),
 	)
-	return f, TargetDistinguishableIdent
+	return f, Distinguishable
 }
 
 func GenIfacePoliceable(pkgName string) (f *File, typIdent string) {
 	f = NewFile(pkgName)
-	f.Commentf("%s is an actor that can be policed", PoliceableIdent)
-	f.Commentf("application implements %s and thereby offers policy adapter and external consumers a common language to reason about a policeable actor", PoliceableIdent)
-	f.Commentf("TODO: implement %s", PoliceableIdent)
+	f.Commentf("%s is an actor that can be policed", Policeable)
+	f.Commentf("application implements %s and thereby offers policy adapter and external consumers a common language to reason about a policeable actor", Policeable)
+	f.Commentf("TODO: implement %s", Policeable)
 	f.Type().Id(
-		PoliceableIdent,
+		Policeable,
 	).Interface(
 		Comment("TODO: adapt to your needs"),
 		Line(),
@@ -297,5 +297,5 @@ func GenIfacePoliceable(pkgName string) (f *File, typIdent string) {
 			Id("string"),
 		),
 	)
-	return f, PoliceableIdent
+	return f, Policeable
 }

@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	StorageRWAdapterIdent = "rw"
-	StorageRAdapterIdent  = "r"
-	PolicyAdapterIdent    = "p"
+	StorageRWIdent = "rw"
+	StorageRIdent  = "r"
+	PolicerIdent   = "p"
 )
 
 func generateIfaces(genPath string, useFactStorage bool, objects *generator.Objects, adapters *generator.Adapters) error {
@@ -54,15 +54,15 @@ func generateIfaces(genPath string, useFactStorage bool, objects *generator.Obje
 	if err := gsf.Save(storageFile); err != nil {
 		return err
 	}
-	adapters.StorageRAdapter = generator.NamedQualId{
-		Name: StorageRAdapterIdent,
+	adapters.StorageR = generator.NamedQualId{
+		Name: StorageRIdent,
 		QualId: generator.QualId{
 			Qual: pkgPath,
 			Id:   rTyp,
 		},
 	}
-	adapters.StorageRWAdapter = generator.NamedQualId{
-		Name: StorageRWAdapterIdent,
+	adapters.StorageRW = generator.NamedQualId{
+		Name: StorageRWIdent,
 		QualId: generator.QualId{
 			Qual: pkgPath,
 			Id:   rwTyp,
@@ -80,8 +80,8 @@ func generateIfaces(genPath string, useFactStorage bool, objects *generator.Obje
 	if err := gpf.Save(policyFile); err != nil {
 		return err
 	}
-	adapters.PolicyAdapter = generator.NamedQualId{
-		Name: PolicyAdapterIdent,
+	adapters.Policer = generator.NamedQualId{
+		Name: PolicerIdent,
 		QualId: generator.QualId{
 			Qual: pkgPath,
 			Id:   typ,
@@ -117,7 +117,7 @@ func generateIfaces(genPath string, useFactStorage bool, objects *generator.Obje
 			return err
 		}
 	}
-	gif, typ := generator.GenIfaceDistinguishableAssertable(pkgName)
+	gif, typ := generator.GenIfaceDistinguishableAsserter(pkgName)
 	if err := gif.Save(identityFile); err != nil {
 		return err
 	}

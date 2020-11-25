@@ -31,6 +31,6 @@ func (t *Target) IsDistinguishable() bool {
 }
 
 var (
-	_ app.RequiresDistinguishableAssertable = (*Target)(nil)
+	_ app.RequiresDistinguishableAsserter = (*Target)(nil)
 	_ app.OffersDistinguishable = (*Target)(nil)
 )
