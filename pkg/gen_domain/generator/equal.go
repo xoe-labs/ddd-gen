@@ -66,7 +66,7 @@ func GenEqual(f *File, typ string, flds []EqualFld) {
 			}
 		}
 		g.Return(
-			Id(shortForm(typ)),
+			Id("true"),
 		)
 	})
 }

@@ -13,7 +13,7 @@ func GenGetters(f *File, typ string, flds []QualField) {
 
 	for _, field := range flds {
 
-		log.Printf("%s: generating '%s' getter\n", typ, strings.Title(field.Id))
+		log.Printf("%s: generating '%s()'\n", typ, strings.Title(field.Id))
 
 		f.Commentf("%s returns %s value", strings.Title(field.Id), field.Id)
 

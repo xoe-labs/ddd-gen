@@ -17,6 +17,11 @@ const (
 	Apply                     = "Apply"
 
 	// DomainCommandHandler
-	Facts    = "Facts"
-	RecordOn = "recordOn"
+	Handle      = "Handle"
+	Facts       = "Facts"
+	FactsField  = "facts"
+	Errors      = "Errors"
+	ErrorsField = "errors"
+	RecordOn    = "recordOn"
+	Raise       = "raise"
 )

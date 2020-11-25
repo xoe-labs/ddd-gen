@@ -68,7 +68,7 @@ func (h Holder) Equal(v interface{}) bool {
 	if !reflect.DeepEqual(h.uuid, other.uuid) {
 		return false
 	}
-	return h
+	return true
 }
 
 // String implements the fmt.Stringer interface and returns the native format of Holder

@@ -101,7 +101,7 @@ func analyzeStructAndGenerateCommandWrappers(genPath, sourceTypeName string, use
 		}
 
 		topic = strings.Title(topic)
-		log.Printf("topic %s -> %s: generating handler and stub\n", topic, cmd)
+		log.Printf("topic %s -> %s: generating handler wrapper\n", topic, cmd)
 
 		fileBaseName := toSnakeCase(cmd)
 		if getLastTitledWord(cmd) != topic {

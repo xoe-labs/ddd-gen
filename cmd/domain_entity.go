@@ -69,7 +69,7 @@ var domainEntityCmd = &cobra.Command{
     Example: a caller can mutate the value.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return gen_domain.Gen(sourceType, validatorMethod)
+		return gen_domain.GenEntity(sourceType, validatorMethod)
 	},
 }
 

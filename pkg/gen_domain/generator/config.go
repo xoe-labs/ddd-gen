@@ -4,8 +4,12 @@
 package generator
 
 import "github.com/dave/jennifer/jen"
+
 type QualField struct {
 	Id      string
 	QualTyp *jen.Statement
 }
 
+type QualId struct {
+	Qual, Id string
+}

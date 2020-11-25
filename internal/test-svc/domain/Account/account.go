@@ -1,10 +1,10 @@
-package domain
+package account
 
 import (
 	"github.com/xoe-labs/ddd-gen/internal/test-svc/domain/holder"
 )
 
-//go:generate go run ../../../main.go --config ../../ddd-config.yaml domain entity -t Account
+//go:generate go run ../../../../main.go --config ../../ddd-config.yaml domain entity -t Account
 type Account struct {
 	uuid        string                   `entity:"required,field uuid is empty;equal;stringer"`
 	holder      holder.Holder            `entity:"required,field holder is empty;getter"`

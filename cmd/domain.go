@@ -23,12 +23,24 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/xoe-labs/ddd-gen/pkg/gen_domain"
 )
 
 // domainCmd represents the domain command
 var domainCmd = &cobra.Command{
 	Use:   "domain",
 	Short: "Generates idiomatic go code for the domain layer",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := gen_domain.NewConfig(
+			sourceType,
+			viper.GetString("entity"),
+		)
+		if err != nil {
+			return err
+		}
+		return gen_domain.GenCommandHandler(cfg)
+	},
 }
 
 func init() {

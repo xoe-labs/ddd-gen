@@ -2,13 +2,13 @@ package app
 
 import (
 	"context"
-	domain "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
+	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/Account"
 )
 
 // commandHandler handles a command in the domain
 type commandHandler interface {
 	// Handle handles the command on Account entity
-	Handle(ctx context.Context, a *domain.Account, ifaces ...interface{}) bool
+	Handle(ctx context.Context, a *account.Account, ifaces ...interface{}) bool
 }
 
 // errorKeeper keeps domain errors
