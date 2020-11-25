@@ -88,23 +88,25 @@ func generateRequiredIfaces(genPath string, useFactStorage bool, objects *genera
 	}
 
 	// command related interfaces
-	commandFile := path.Join(genPath, "command.go")
+	commandFile := path.Join(genPath, "domain.go")
 	if fileExists(commandFile) {
 		if err := os.Remove(commandFile); err != nil {
 			return err
 		}
 	}
-	gcf, cmdTyp, factCmdTyp := generator.GenCmdHandlerIface(objects.Entity, useFactStorage)
+	gcf, cmd, fk := generator.GenCmdHandlerIface(objects.Entity, useFactStorage)
 	if err := gcf.Save(commandFile); err != nil {
 		return err
 	}
-	objects.ErrorKeeperCmdHandler = generator.QualId{
-		Qual: pkgPath,
-		Id:   cmdTyp,
+	if useFactStorage {
+		objects.FactKeeper = generator.QualId{
+			Qual: pkgPath,
+			Id:   fk,
+		}
 	}
-	objects.FactErrorKeeperCmdHandler = generator.QualId{
+	objects.DomainCommandHandler = generator.QualId{
 		Qual: pkgPath,
-		Id:   factCmdTyp,
+		Id:   cmd,
 	}
 
 	// identity related interfaces
@@ -149,7 +151,6 @@ func generateOfferedIfaces(genPath string, objects *generator.Objects) error {
 	log.Println("  using object interfaces ...")
 	log.Printf("\t%s\n", objects.Entity)
 	log.Printf("\t%s\n", objects.TargetIdAssertable)
-
 
 	// distinguishable related interfaces
 	distinguishableFile := path.Join(genPath, "distinguishable.go")

@@ -4,12 +4,10 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	errwrap "github.com/hashicorp/errwrap"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	policy "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -17,59 +15,67 @@ import (
 
 var (
 	// ErrNotAuthorizedToIncreaseBalance signals that the caller is not authorized to perform IncreaseBalance
-	ErrNotAuthorizedToIncreaseBalance = error1.NewAuthorizationError("ErrNotAuthorizedToIncreaseBalance")
-	// ErrIncreaseBalanceNotIdentifiable signals that IncreaseBalance's command object was not identifiable
-	ErrIncreaseBalanceNotIdentifiable = error1.NewIdentificationError("ErrIncreaseBalanceNotIdentifiable")
-	// ErrIncreaseBalanceFailedInRepository signals that IncreaseBalance failed in the repository layer
-	ErrIncreaseBalanceFailedInRepository = error1.NewRepositoryError("ErrIncreaseBalanceFailedInRepository")
+	ErrNotAuthorizedToIncreaseBalance = errors.NewAuthorizationError("ErrNotAuthorizedToIncreaseBalance")
+	// ErrIncreaseBalanceHasNoTarget signals that IncreaseBalance's target was not distinguishable
+	ErrIncreaseBalanceHasNoTarget = errors.NewTargetIdentificationError("ErrIncreaseBalanceHasNoTarget")
+	// ErrIncreaseBalanceLoadingFailed signals that IncreaseBalance storage failed to load the entity
+	ErrIncreaseBalanceLoadingFailed = errors.NewStorageLoadingError("ErrIncreaseBalanceLoadingFailed")
+	// ErrIncreaseBalanceSavingFailed signals that IncreaseBalance failed to save the entity
+	ErrIncreaseBalanceSavingFailed = errors.NewStorageSavingError("ErrIncreaseBalanceSavingFailed")
 	// ErrIncreaseBalanceFailedInDomain signals that IncreaseBalance failed in the domain layer
-	ErrIncreaseBalanceFailedInDomain = error1.NewDomainError("ErrIncreaseBalanceFailedInDomain")
+	ErrIncreaseBalanceFailedInDomain = errors.NewDomainError("ErrIncreaseBalanceFailedInDomain")
 )
 
-// IncreaseBalanceHandler knows how to perform IncreaseBalance
-type IncreaseBalanceHandler struct {
-	pol policy.Policer
-	agg repository.Repository
+// IncreaseBalanceHandlerWrapper knows how to perform IncreaseBalance
+type IncreaseBalanceHandlerWrapper struct {
+	rw requires.StorageWriterReader
+	p  requires.Policer
 }
 
-// NewIncreaseBalanceHandler returns IncreaseBalanceHandler
-func NewIncreaseBalanceHandler(pol policy.Policer, agg repository.Repository) *IncreaseBalanceHandler {
-	if reflect.ValueOf(pol).IsZero() {
-		panic("no 'pol' provided!")
+// NewIncreaseBalanceHandlerWrapper returns IncreaseBalanceHandlerWrapper
+func NewIncreaseBalanceHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *IncreaseBalanceHandlerWrapper {
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+	if reflect.ValueOf(p).IsZero() {
+		panic("no 'p' provided!")
 	}
-	return &IncreaseBalanceHandler{pol: pol, agg: agg}
+	return &IncreaseBalanceHandlerWrapper{rw: rw, p: p}
 }
 
 // Handle generically performs IncreaseBalance
-func (h IncreaseBalanceHandler) Handle(ctx context.Context, ib IncreaseBalance) error {
-	if reflect.ValueOf(ib.Identifier()).IsZero() {
-		return ErrIncreaseBalanceNotIdentifiable
+func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrIncreaseBalanceHasNoTarget
 	}
-	var innerErr error
-	var repoErr error
-	repoErr = h.agg.Update(ctx, ib, func(a *account.Account) bool {
-		data, err := json.Marshal(a)
-		if err != nil {
-			panic(err) // invariant violation: the domain shall always be consistent!
-		}
-		if ok := h.pol.Can(ctx, ib, "IncreaseBalance", data); !ok {
-			innerErr = ErrNotAuthorizedToIncreaseBalance
-			return false
-		}
-		if err := ib.handle(ctx, a); err != nil {
-			innerErr = errwrap.Wrap(ErrIncreaseBalanceFailedInDomain, err)
-			return false
-		}
-		return true
-	})
-	if innerErr != nil {
-		return innerErr
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrIncreaseBalanceLoadingFailed, loadErr)
 	}
-	if repoErr != nil {
-		return errwrap.Wrap(ErrIncreaseBalanceFailedInRepository, repoErr)
+	// assert authorization via policy interface
+	if ok := h.p.Can(ctx, actor, "IncreaseBalance", a); !ok {
+		// return opaque error: handle potentially sensitive policy errors out-of-band!
+		return ErrNotAuthorizedToIncreaseBalance
+	}
+	// assert correct command handling by the domain
+	if ok := ib.Handle(ctx, a); !ok {
+		var domErr error
+		// ib is an ErrorKeeper
+		for i, e := range ib.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
+		}
+		return ErrIncreaseBalanceFailedInDomain
+	}
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(ib))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrIncreaseBalanceSavingFailed, saveErr)
 	}
 	return nil
 }

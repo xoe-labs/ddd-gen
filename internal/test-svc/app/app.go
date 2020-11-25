@@ -10,7 +10,7 @@ type Application struct {
 	Queries  Queries
 }
 
-//go:generate go run ../../../main.go --config ../ddd-config.yaml app command -t Commands
+//go:generate go run ../../../main.go --config ../ddd-config.yaml app command --fact-based -t Commands
 type Commands struct {
 	MakeNewAccount          command.MakeNewAccountHandlerWrapper          ``
 	MakeNewAccountWithOutId command.MakeNewAccountWithOutIdHandlerWrapper `command:"topic,account"`
@@ -18,7 +18,7 @@ type Commands struct {
 	BlockAccount            command.BlockAccountHandlerWrapper            ``
 	ValidateHolder          command.BlockAccountHandlerWrapper            `command:"w/o policy"`
 	IncreaseBalance         command.IncreaseBalanceHandlerWrapper         ``
-	IncreaseBalanceFromSvc  command.IncreaseBalanceHandlerWrapper         `command:"topic,balance; adapters,svc:github.com/xoe-labs/ddd-gen/internal/test-svc/app/balancer.Balancer"`
+	IncreaseBalanceFromSvc  command.IncreaseBalanceHandlerWrapper         `command:"topic,balance; adapters,svc:github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces.Balancer"`
 }
 
 type Queries struct {

@@ -4,13 +4,10 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	errwrap "github.com/hashicorp/errwrap"
-	gouuid "github.com/satori/go.uuid"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	policy "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -18,54 +15,67 @@ import (
 
 var (
 	// ErrNotAuthorizedToMakeNewAccountWithOutId signals that the caller is not authorized to perform MakeNewAccountWithOutId
-	ErrNotAuthorizedToMakeNewAccountWithOutId = error1.NewAuthorizationError("ErrNotAuthorizedToMakeNewAccountWithOutId")
-	// ErrMakeNewAccountWithOutIdFailedInRepository signals that MakeNewAccountWithOutId failed in the repository layer
-	ErrMakeNewAccountWithOutIdFailedInRepository = error1.NewRepositoryError("ErrMakeNewAccountWithOutIdFailedInRepository")
+	ErrNotAuthorizedToMakeNewAccountWithOutId = errors.NewAuthorizationError("ErrNotAuthorizedToMakeNewAccountWithOutId")
+	// ErrMakeNewAccountWithOutIdHasNoTarget signals that MakeNewAccountWithOutId's target was not distinguishable
+	ErrMakeNewAccountWithOutIdHasNoTarget = errors.NewTargetIdentificationError("ErrMakeNewAccountWithOutIdHasNoTarget")
+	// ErrMakeNewAccountWithOutIdLoadingFailed signals that MakeNewAccountWithOutId storage failed to load the entity
+	ErrMakeNewAccountWithOutIdLoadingFailed = errors.NewStorageLoadingError("ErrMakeNewAccountWithOutIdLoadingFailed")
+	// ErrMakeNewAccountWithOutIdSavingFailed signals that MakeNewAccountWithOutId failed to save the entity
+	ErrMakeNewAccountWithOutIdSavingFailed = errors.NewStorageSavingError("ErrMakeNewAccountWithOutIdSavingFailed")
 	// ErrMakeNewAccountWithOutIdFailedInDomain signals that MakeNewAccountWithOutId failed in the domain layer
-	ErrMakeNewAccountWithOutIdFailedInDomain = error1.NewDomainError("ErrMakeNewAccountWithOutIdFailedInDomain")
+	ErrMakeNewAccountWithOutIdFailedInDomain = errors.NewDomainError("ErrMakeNewAccountWithOutIdFailedInDomain")
 )
 
-// MakeNewAccountWithOutIdHandler knows how to perform MakeNewAccountWithOutId
-type MakeNewAccountWithOutIdHandler struct {
-	pol policy.Policer
-	agg repository.Repository
+// MakeNewAccountWithOutIdHandlerWrapper knows how to perform MakeNewAccountWithOutId
+type MakeNewAccountWithOutIdHandlerWrapper struct {
+	rw requires.StorageWriterReader
+	p  requires.Policer
 }
 
-// NewMakeNewAccountWithOutIdHandler returns MakeNewAccountWithOutIdHandler
-func NewMakeNewAccountWithOutIdHandler(pol policy.Policer, agg repository.Repository) *MakeNewAccountWithOutIdHandler {
-	if reflect.ValueOf(pol).IsZero() {
-		panic("no 'pol' provided!")
+// NewMakeNewAccountWithOutIdHandlerWrapper returns MakeNewAccountWithOutIdHandlerWrapper
+func NewMakeNewAccountWithOutIdHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *MakeNewAccountWithOutIdHandlerWrapper {
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+	if reflect.ValueOf(p).IsZero() {
+		panic("no 'p' provided!")
 	}
-	return &MakeNewAccountWithOutIdHandler{pol: pol, agg: agg}
+	return &MakeNewAccountWithOutIdHandlerWrapper{rw: rw, p: p}
 }
 
 // Handle generically performs MakeNewAccountWithOutId
-func (h MakeNewAccountWithOutIdHandler) Handle(ctx context.Context, mnawoi MakeNewAccountWithOutId) (gouuid.UUID, error) {
-	var innerErr error
-	var repoErr error
-	identifier, repoErr := h.agg.Add(ctx, func() (a *account.Account) {
-		if err := mnawoi.handle(ctx, a); err != nil {
-			innerErr = errwrap.Wrap(ErrMakeNewAccountWithOutIdFailedInDomain, err)
-			return nil
-		}
-		data, err := json.Marshal(a)
-		if err != nil {
-			panic(err) // invariant violation: the domain shall always be consistent!
-		}
-		if ok := h.pol.Can(ctx, mnawoi, "MakeNewAccountWithOutId", data); !ok {
-			innerErr = ErrNotAuthorizedToMakeNewAccountWithOutId
-			return nil
-		}
-		return a
-	})
-	if innerErr != nil {
-		return identifier, innerErr
+func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrMakeNewAccountWithOutIdHasNoTarget
 	}
-	if repoErr != nil {
-		return identifier, errwrap.Wrap(ErrMakeNewAccountWithOutIdFailedInRepository, repoErr)
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrMakeNewAccountWithOutIdLoadingFailed, loadErr)
 	}
-	return identifier, nil
+	// assert authorization via policy interface
+	if ok := h.p.Can(ctx, actor, "MakeNewAccountWithOutId", a); !ok {
+		// return opaque error: handle potentially sensitive policy errors out-of-band!
+		return ErrNotAuthorizedToMakeNewAccountWithOutId
+	}
+	// assert correct command handling by the domain
+	if ok := mnawoi.Handle(ctx, a); !ok {
+		var domErr error
+		// mnawoi is an ErrorKeeper
+		for i, e := range mnawoi.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
+		}
+		return ErrMakeNewAccountWithOutIdFailedInDomain
+	}
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(mnawoi))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrMakeNewAccountWithOutIdSavingFailed, saveErr)
+	}
+	return nil
 }

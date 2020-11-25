@@ -4,12 +4,10 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	errwrap "github.com/hashicorp/errwrap"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	policy "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -17,59 +15,67 @@ import (
 
 var (
 	// ErrNotAuthorizedToBlockAccount signals that the caller is not authorized to perform BlockAccount
-	ErrNotAuthorizedToBlockAccount = error1.NewAuthorizationError("ErrNotAuthorizedToBlockAccount")
-	// ErrBlockAccountNotIdentifiable signals that BlockAccount's command object was not identifiable
-	ErrBlockAccountNotIdentifiable = error1.NewIdentificationError("ErrBlockAccountNotIdentifiable")
-	// ErrBlockAccountFailedInRepository signals that BlockAccount failed in the repository layer
-	ErrBlockAccountFailedInRepository = error1.NewRepositoryError("ErrBlockAccountFailedInRepository")
+	ErrNotAuthorizedToBlockAccount = errors.NewAuthorizationError("ErrNotAuthorizedToBlockAccount")
+	// ErrBlockAccountHasNoTarget signals that BlockAccount's target was not distinguishable
+	ErrBlockAccountHasNoTarget = errors.NewTargetIdentificationError("ErrBlockAccountHasNoTarget")
+	// ErrBlockAccountLoadingFailed signals that BlockAccount storage failed to load the entity
+	ErrBlockAccountLoadingFailed = errors.NewStorageLoadingError("ErrBlockAccountLoadingFailed")
+	// ErrBlockAccountSavingFailed signals that BlockAccount failed to save the entity
+	ErrBlockAccountSavingFailed = errors.NewStorageSavingError("ErrBlockAccountSavingFailed")
 	// ErrBlockAccountFailedInDomain signals that BlockAccount failed in the domain layer
-	ErrBlockAccountFailedInDomain = error1.NewDomainError("ErrBlockAccountFailedInDomain")
+	ErrBlockAccountFailedInDomain = errors.NewDomainError("ErrBlockAccountFailedInDomain")
 )
 
-// BlockAccountHandler knows how to perform BlockAccount
-type BlockAccountHandler struct {
-	pol policy.Policer
-	agg repository.Repository
+// BlockAccountHandlerWrapper knows how to perform BlockAccount
+type BlockAccountHandlerWrapper struct {
+	rw requires.StorageWriterReader
+	p  requires.Policer
 }
 
-// NewBlockAccountHandler returns BlockAccountHandler
-func NewBlockAccountHandler(pol policy.Policer, agg repository.Repository) *BlockAccountHandler {
-	if reflect.ValueOf(pol).IsZero() {
-		panic("no 'pol' provided!")
+// NewBlockAccountHandlerWrapper returns BlockAccountHandlerWrapper
+func NewBlockAccountHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *BlockAccountHandlerWrapper {
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+	if reflect.ValueOf(p).IsZero() {
+		panic("no 'p' provided!")
 	}
-	return &BlockAccountHandler{pol: pol, agg: agg}
+	return &BlockAccountHandlerWrapper{rw: rw, p: p}
 }
 
 // Handle generically performs BlockAccount
-func (h BlockAccountHandler) Handle(ctx context.Context, ba BlockAccount) error {
-	if reflect.ValueOf(ba.Identifier()).IsZero() {
-		return ErrBlockAccountNotIdentifiable
+func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrBlockAccountHasNoTarget
 	}
-	var innerErr error
-	var repoErr error
-	repoErr = h.agg.Update(ctx, ba, func(a *account.Account) bool {
-		data, err := json.Marshal(a)
-		if err != nil {
-			panic(err) // invariant violation: the domain shall always be consistent!
-		}
-		if ok := h.pol.Can(ctx, ba, "BlockAccount", data); !ok {
-			innerErr = ErrNotAuthorizedToBlockAccount
-			return false
-		}
-		if err := ba.handle(ctx, a); err != nil {
-			innerErr = errwrap.Wrap(ErrBlockAccountFailedInDomain, err)
-			return false
-		}
-		return true
-	})
-	if innerErr != nil {
-		return innerErr
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrBlockAccountLoadingFailed, loadErr)
 	}
-	if repoErr != nil {
-		return errwrap.Wrap(ErrBlockAccountFailedInRepository, repoErr)
+	// assert authorization via policy interface
+	if ok := h.p.Can(ctx, actor, "BlockAccount", a); !ok {
+		// return opaque error: handle potentially sensitive policy errors out-of-band!
+		return ErrNotAuthorizedToBlockAccount
+	}
+	// assert correct command handling by the domain
+	if ok := ba.Handle(ctx, a); !ok {
+		var domErr error
+		// ba is an ErrorKeeper
+		for i, e := range ba.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
+		}
+		return ErrBlockAccountFailedInDomain
+	}
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(ba))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrBlockAccountSavingFailed, saveErr)
 	}
 	return nil
 }

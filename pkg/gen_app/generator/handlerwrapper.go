@@ -125,19 +125,15 @@ func addCommandFuncHandle(f *File,
 	entityShort := cmdShortForm(objects.Entity.Id)
 	f.Commentf("Handle generically performs %s", DoSomething)
 	f.Func().Params(
-		Id("h").Id(DoSomething + "HandlerWrapper"),
+		Id("h").Id(DoSomething+"HandlerWrapper"),
 	).Id(
 		"Handle",
-	).ParamsFunc(func(g *Group) {
-		g.Id("ctx").Qual("context", "Context")
-		if useFactStorage {
-			g.Id(cmdShortForm(DoSomething)).Qual(objects.FactErrorKeeperCmdHandler.Qual, objects.ErrorKeeperCmdHandler.Id)
-		} else {
-			g.Id(cmdShortForm(DoSomething)).Qual(objects.ErrorKeeperCmdHandler.Qual, objects.ErrorKeeperCmdHandler.Id)
-		}
-		g.Id("actor").Qual(objects.Actor.Qual, objects.Actor.Id)
-		g.Id("target").Qual(objects.Target.Qual, objects.Target.Id)
-	}).Parens(
+	).Params(
+		Id("ctx").Qual("context", "Context"),
+		Id(cmdShortForm(DoSomething)).Qual(objects.DomainCommandHandler.Qual, objects.DomainCommandHandler.Id),
+		Id("actor").Qual(objects.Actor.Qual, objects.Actor.Id),
+		Id("target").Qual(objects.Target.Qual, objects.Target.Id),
+	).Parens(
 		List(
 			Id("error"),
 		),
@@ -223,7 +219,7 @@ func addCommandFuncHandle(f *File,
 				).Call(),
 			).Block(
 				If(Id("i")).Op("==").Lit(0).Block(
-					Id("domErr").Op("=").Id("domErr"),
+					Id("domErr").Op("=").Id("e"),
 				).Else().Block(
 					Id("domErr").Op("=").Qual(
 						"github.com/hashicorp/errwrap",
@@ -241,7 +237,6 @@ func addCommandFuncHandle(f *File,
 
 		if useFactStorage { // a event sourcing storage
 			g.Comment("save domain facts to storage")
-			g.Commentf("%s is a ErrorFactKeeper", cmdShortForm(DoSomething))
 			g.Id(
 				"saveErr",
 			).Op(":=").Id("h").Dot(adapters.StorageRWAdapter.Name).Dot(
@@ -249,7 +244,7 @@ func addCommandFuncHandle(f *File,
 			).Call(
 				Id("ctx"),
 				Id("target"),
-				Id(cmdShortForm(DoSomething)),
+				Qual(objects.FactKeeper.Qual, objects.FactKeeper.Id).Call(Id(cmdShortForm(DoSomething))),
 			)
 			g.If(
 				Id("saveErr").Op("!=").Id("nil"),

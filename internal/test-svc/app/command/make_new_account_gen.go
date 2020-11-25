@@ -4,12 +4,10 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	errwrap "github.com/hashicorp/errwrap"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	policy "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -17,59 +15,67 @@ import (
 
 var (
 	// ErrNotAuthorizedToMakeNewAccount signals that the caller is not authorized to perform MakeNewAccount
-	ErrNotAuthorizedToMakeNewAccount = error1.NewAuthorizationError("ErrNotAuthorizedToMakeNewAccount")
-	// ErrMakeNewAccountNotIdentifiable signals that MakeNewAccount's command object was not identifiable
-	ErrMakeNewAccountNotIdentifiable = error1.NewIdentificationError("ErrMakeNewAccountNotIdentifiable")
-	// ErrMakeNewAccountFailedInRepository signals that MakeNewAccount failed in the repository layer
-	ErrMakeNewAccountFailedInRepository = error1.NewRepositoryError("ErrMakeNewAccountFailedInRepository")
+	ErrNotAuthorizedToMakeNewAccount = errors.NewAuthorizationError("ErrNotAuthorizedToMakeNewAccount")
+	// ErrMakeNewAccountHasNoTarget signals that MakeNewAccount's target was not distinguishable
+	ErrMakeNewAccountHasNoTarget = errors.NewTargetIdentificationError("ErrMakeNewAccountHasNoTarget")
+	// ErrMakeNewAccountLoadingFailed signals that MakeNewAccount storage failed to load the entity
+	ErrMakeNewAccountLoadingFailed = errors.NewStorageLoadingError("ErrMakeNewAccountLoadingFailed")
+	// ErrMakeNewAccountSavingFailed signals that MakeNewAccount failed to save the entity
+	ErrMakeNewAccountSavingFailed = errors.NewStorageSavingError("ErrMakeNewAccountSavingFailed")
 	// ErrMakeNewAccountFailedInDomain signals that MakeNewAccount failed in the domain layer
-	ErrMakeNewAccountFailedInDomain = error1.NewDomainError("ErrMakeNewAccountFailedInDomain")
+	ErrMakeNewAccountFailedInDomain = errors.NewDomainError("ErrMakeNewAccountFailedInDomain")
 )
 
-// MakeNewAccountHandler knows how to perform MakeNewAccount
-type MakeNewAccountHandler struct {
-	pol policy.Policer
-	agg repository.Repository
+// MakeNewAccountHandlerWrapper knows how to perform MakeNewAccount
+type MakeNewAccountHandlerWrapper struct {
+	rw requires.StorageWriterReader
+	p  requires.Policer
 }
 
-// NewMakeNewAccountHandler returns MakeNewAccountHandler
-func NewMakeNewAccountHandler(pol policy.Policer, agg repository.Repository) *MakeNewAccountHandler {
-	if reflect.ValueOf(pol).IsZero() {
-		panic("no 'pol' provided!")
+// NewMakeNewAccountHandlerWrapper returns MakeNewAccountHandlerWrapper
+func NewMakeNewAccountHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *MakeNewAccountHandlerWrapper {
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+	if reflect.ValueOf(p).IsZero() {
+		panic("no 'p' provided!")
 	}
-	return &MakeNewAccountHandler{pol: pol, agg: agg}
+	return &MakeNewAccountHandlerWrapper{rw: rw, p: p}
 }
 
 // Handle generically performs MakeNewAccount
-func (h MakeNewAccountHandler) Handle(ctx context.Context, mna MakeNewAccount) error {
-	if reflect.ValueOf(mna.Identifier()).IsZero() {
-		return ErrMakeNewAccountNotIdentifiable
+func (h MakeNewAccountHandlerWrapper) Handle(ctx context.Context, mna requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrMakeNewAccountHasNoTarget
 	}
-	var innerErr error
-	var repoErr error
-	_, repoErr := h.agg.Add(ctx, func() (a *account.Account) {
-		if err := mna.handle(ctx, a); err != nil {
-			innerErr = errwrap.Wrap(ErrMakeNewAccountFailedInDomain, err)
-			return nil
-		}
-		data, err := json.Marshal(a)
-		if err != nil {
-			panic(err) // invariant violation: the domain shall always be consistent!
-		}
-		if ok := h.pol.Can(ctx, mna, "MakeNewAccount", data); !ok {
-			innerErr = ErrNotAuthorizedToMakeNewAccount
-			return nil
-		}
-		return a
-	})
-	if innerErr != nil {
-		return innerErr
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrMakeNewAccountLoadingFailed, loadErr)
 	}
-	if repoErr != nil {
-		return errwrap.Wrap(ErrMakeNewAccountFailedInRepository, repoErr)
+	// assert authorization via policy interface
+	if ok := h.p.Can(ctx, actor, "MakeNewAccount", a); !ok {
+		// return opaque error: handle potentially sensitive policy errors out-of-band!
+		return ErrNotAuthorizedToMakeNewAccount
+	}
+	// assert correct command handling by the domain
+	if ok := mna.Handle(ctx, a); !ok {
+		var domErr error
+		// mna is an ErrorKeeper
+		for i, e := range mna.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
+		}
+		return ErrMakeNewAccountFailedInDomain
+	}
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(mna))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrMakeNewAccountSavingFailed, saveErr)
 	}
 	return nil
 }

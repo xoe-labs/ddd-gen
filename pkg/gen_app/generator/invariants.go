@@ -21,9 +21,11 @@ const (
 	StorageSaveMethodName      = "Save"
 	StorageSaveFactsMethodName = "SaveFacts"
 
-	ErrorKeeperCommandHandlerIdent        = "ErrorKeeperCommandHandler"
-	FactErrorKeeperCommandHandlerIdent    = "FactErrorKeeperCommandHandler"
-	CmdHandleMethodName                   = "Handle"
-	ErrorKeeperCollectErrorsMethodName    = "Errors"
-	FactErrorKeeperCollectFactsMethodName = "Facts"
+	CommandHandler                     = "commandHandler"
+	CmdHandleMethodName                = "Handle"
+	ErrorKeeper                        = "errorKeeper"
+	ErrorKeeperCollectErrorsMethodName = "Errors"
+	FactKeeper                         = "FactKeeper"
+	FactKeeperCollectFactsMethodName   = "Facts"
+	DomainCommandHandler               = "DomainCommandHandler"
 )

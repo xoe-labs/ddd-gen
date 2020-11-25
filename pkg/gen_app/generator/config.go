@@ -20,12 +20,12 @@ type Adapters struct {
 
 // Objects are represented by application level or domain interfaces
 type Objects struct {
-	Target                    QualId // target represents a distinguishable entity
-	TargetIdAssertable        QualId // target id assertable represents a target that can be asserted to be distinguishable
-	Entity                    QualId // entity represents a non-distinguishable concrete entity
-	Actor                     QualId // actor represents the caller of a command
-	ErrorKeeperCmdHandler     QualId // error keeper and command handler represents an object that handles the command and keeps errors
-	FactErrorKeeperCmdHandler QualId // fact & error keeper and command handler represents an object that handles the command and keeps facts & errors
+	Target               QualId // target represents a distinguishable entity
+	TargetIdAssertable   QualId // target id assertable represents a target that can be asserted to be distinguishable
+	Entity               QualId // entity represents a non-distinguishable concrete entity
+	Actor                QualId // actor represents the caller of a command
+	FactKeeper           QualId // fact keeper keeps domain facts
+	DomainCommandHandler QualId // domain command handler handles domain commands, keeps errors and - if configured - facts
 
 }
 

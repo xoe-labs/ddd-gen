@@ -4,12 +4,10 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	errwrap "github.com/hashicorp/errwrap"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	policy "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -17,59 +15,67 @@ import (
 
 var (
 	// ErrNotAuthorizedToDeleteAccount signals that the caller is not authorized to perform DeleteAccount
-	ErrNotAuthorizedToDeleteAccount = error1.NewAuthorizationError("ErrNotAuthorizedToDeleteAccount")
-	// ErrDeleteAccountNotIdentifiable signals that DeleteAccount's command object was not identifiable
-	ErrDeleteAccountNotIdentifiable = error1.NewIdentificationError("ErrDeleteAccountNotIdentifiable")
-	// ErrDeleteAccountFailedInRepository signals that DeleteAccount failed in the repository layer
-	ErrDeleteAccountFailedInRepository = error1.NewRepositoryError("ErrDeleteAccountFailedInRepository")
+	ErrNotAuthorizedToDeleteAccount = errors.NewAuthorizationError("ErrNotAuthorizedToDeleteAccount")
+	// ErrDeleteAccountHasNoTarget signals that DeleteAccount's target was not distinguishable
+	ErrDeleteAccountHasNoTarget = errors.NewTargetIdentificationError("ErrDeleteAccountHasNoTarget")
+	// ErrDeleteAccountLoadingFailed signals that DeleteAccount storage failed to load the entity
+	ErrDeleteAccountLoadingFailed = errors.NewStorageLoadingError("ErrDeleteAccountLoadingFailed")
+	// ErrDeleteAccountSavingFailed signals that DeleteAccount failed to save the entity
+	ErrDeleteAccountSavingFailed = errors.NewStorageSavingError("ErrDeleteAccountSavingFailed")
 	// ErrDeleteAccountFailedInDomain signals that DeleteAccount failed in the domain layer
-	ErrDeleteAccountFailedInDomain = error1.NewDomainError("ErrDeleteAccountFailedInDomain")
+	ErrDeleteAccountFailedInDomain = errors.NewDomainError("ErrDeleteAccountFailedInDomain")
 )
 
-// DeleteAccountHandler knows how to perform DeleteAccount
-type DeleteAccountHandler struct {
-	pol policy.Policer
-	agg repository.Repository
+// DeleteAccountHandlerWrapper knows how to perform DeleteAccount
+type DeleteAccountHandlerWrapper struct {
+	rw requires.StorageWriterReader
+	p  requires.Policer
 }
 
-// NewDeleteAccountHandler returns DeleteAccountHandler
-func NewDeleteAccountHandler(pol policy.Policer, agg repository.Repository) *DeleteAccountHandler {
-	if reflect.ValueOf(pol).IsZero() {
-		panic("no 'pol' provided!")
+// NewDeleteAccountHandlerWrapper returns DeleteAccountHandlerWrapper
+func NewDeleteAccountHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *DeleteAccountHandlerWrapper {
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+	if reflect.ValueOf(p).IsZero() {
+		panic("no 'p' provided!")
 	}
-	return &DeleteAccountHandler{pol: pol, agg: agg}
+	return &DeleteAccountHandlerWrapper{rw: rw, p: p}
 }
 
 // Handle generically performs DeleteAccount
-func (h DeleteAccountHandler) Handle(ctx context.Context, da DeleteAccount) error {
-	if reflect.ValueOf(da.Identifier()).IsZero() {
-		return ErrDeleteAccountNotIdentifiable
+func (h DeleteAccountHandlerWrapper) Handle(ctx context.Context, da requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrDeleteAccountHasNoTarget
 	}
-	var innerErr error
-	var repoErr error
-	repoErr = h.agg.Remove(ctx, da, func(a account.Account) bool {
-		data, err := json.Marshal(a)
-		if err != nil {
-			panic(err) // invariant violation: the domain shall always be consistent!
-		}
-		if ok := h.pol.Can(ctx, da, "DeleteAccount", data); !ok {
-			innerErr = ErrNotAuthorizedToDeleteAccount
-			return false
-		}
-		if err := da.handle(ctx, a); err != nil {
-			innerErr = errwrap.Wrap(ErrDeleteAccountFailedInDomain, err)
-			return false
-		}
-		return true
-	})
-	if innerErr != nil {
-		return innerErr
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrDeleteAccountLoadingFailed, loadErr)
 	}
-	if repoErr != nil {
-		return errwrap.Wrap(ErrDeleteAccountFailedInRepository, repoErr)
+	// assert authorization via policy interface
+	if ok := h.p.Can(ctx, actor, "DeleteAccount", a); !ok {
+		// return opaque error: handle potentially sensitive policy errors out-of-band!
+		return ErrNotAuthorizedToDeleteAccount
+	}
+	// assert correct command handling by the domain
+	if ok := da.Handle(ctx, a); !ok {
+		var domErr error
+		// da is an ErrorKeeper
+		for i, e := range da.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
+		}
+		return ErrDeleteAccountFailedInDomain
+	}
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(da))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrDeleteAccountSavingFailed, saveErr)
 	}
 	return nil
 }

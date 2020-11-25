@@ -4,13 +4,11 @@ package command
 
 import (
 	"context"
-	"encoding/json"
 	errwrap "github.com/hashicorp/errwrap"
-	balancer "github.com/xoe-labs/ddd-gen/internal/test-svc/app/balancer"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	policy "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	ifaces "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -18,63 +16,71 @@ import (
 
 var (
 	// ErrNotAuthorizedToIncreaseBalanceFromSvc signals that the caller is not authorized to perform IncreaseBalanceFromSvc
-	ErrNotAuthorizedToIncreaseBalanceFromSvc = error1.NewAuthorizationError("ErrNotAuthorizedToIncreaseBalanceFromSvc")
-	// ErrIncreaseBalanceFromSvcNotIdentifiable signals that IncreaseBalanceFromSvc's command object was not identifiable
-	ErrIncreaseBalanceFromSvcNotIdentifiable = error1.NewIdentificationError("ErrIncreaseBalanceFromSvcNotIdentifiable")
-	// ErrIncreaseBalanceFromSvcFailedInRepository signals that IncreaseBalanceFromSvc failed in the repository layer
-	ErrIncreaseBalanceFromSvcFailedInRepository = error1.NewRepositoryError("ErrIncreaseBalanceFromSvcFailedInRepository")
+	ErrNotAuthorizedToIncreaseBalanceFromSvc = errors.NewAuthorizationError("ErrNotAuthorizedToIncreaseBalanceFromSvc")
+	// ErrIncreaseBalanceFromSvcHasNoTarget signals that IncreaseBalanceFromSvc's target was not distinguishable
+	ErrIncreaseBalanceFromSvcHasNoTarget = errors.NewTargetIdentificationError("ErrIncreaseBalanceFromSvcHasNoTarget")
+	// ErrIncreaseBalanceFromSvcLoadingFailed signals that IncreaseBalanceFromSvc storage failed to load the entity
+	ErrIncreaseBalanceFromSvcLoadingFailed = errors.NewStorageLoadingError("ErrIncreaseBalanceFromSvcLoadingFailed")
+	// ErrIncreaseBalanceFromSvcSavingFailed signals that IncreaseBalanceFromSvc failed to save the entity
+	ErrIncreaseBalanceFromSvcSavingFailed = errors.NewStorageSavingError("ErrIncreaseBalanceFromSvcSavingFailed")
 	// ErrIncreaseBalanceFromSvcFailedInDomain signals that IncreaseBalanceFromSvc failed in the domain layer
-	ErrIncreaseBalanceFromSvcFailedInDomain = error1.NewDomainError("ErrIncreaseBalanceFromSvcFailedInDomain")
+	ErrIncreaseBalanceFromSvcFailedInDomain = errors.NewDomainError("ErrIncreaseBalanceFromSvcFailedInDomain")
 )
 
-// IncreaseBalanceFromSvcHandler knows how to perform IncreaseBalanceFromSvc
-type IncreaseBalanceFromSvcHandler struct {
-	svc balancer.Balancer
-	pol policy.Policer
-	agg repository.Repository
+// IncreaseBalanceFromSvcHandlerWrapper knows how to perform IncreaseBalanceFromSvc
+type IncreaseBalanceFromSvcHandlerWrapper struct {
+	rw  requires.StorageWriterReader
+	p   requires.Policer
+	svc ifaces.Balancer
 }
 
-// NewIncreaseBalanceFromSvcHandler returns IncreaseBalanceFromSvcHandler
-func NewIncreaseBalanceFromSvcHandler(svc balancer.Balancer, pol policy.Policer, agg repository.Repository) *IncreaseBalanceFromSvcHandler {
+// NewIncreaseBalanceFromSvcHandlerWrapper returns IncreaseBalanceFromSvcHandlerWrapper
+func NewIncreaseBalanceFromSvcHandlerWrapper(svc ifaces.Balancer, rw requires.StorageWriterReader, p requires.Policer) *IncreaseBalanceFromSvcHandlerWrapper {
 	if reflect.ValueOf(svc).IsZero() {
 		panic("no 'svc' provided!")
 	}
-	if reflect.ValueOf(pol).IsZero() {
-		panic("no 'pol' provided!")
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+	if reflect.ValueOf(p).IsZero() {
+		panic("no 'p' provided!")
 	}
-	return &IncreaseBalanceFromSvcHandler{svc: svc, pol: pol, agg: agg}
+	return &IncreaseBalanceFromSvcHandlerWrapper{svc: svc, rw: rw, p: p}
 }
 
 // Handle generically performs IncreaseBalanceFromSvc
-func (h IncreaseBalanceFromSvcHandler) Handle(ctx context.Context, ibfs IncreaseBalanceFromSvc) error {
-	if reflect.ValueOf(ibfs.Identifier()).IsZero() {
-		return ErrIncreaseBalanceFromSvcNotIdentifiable
+func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrIncreaseBalanceFromSvcHasNoTarget
 	}
-	var innerErr error
-	var repoErr error
-	repoErr = h.agg.Update(ctx, ibfs, func(a *account.Account) bool {
-		data, err := json.Marshal(a)
-		if err != nil {
-			panic(err) // invariant violation: the domain shall always be consistent!
-		}
-		if ok := h.pol.Can(ctx, ibfs, "IncreaseBalanceFromSvc", data); !ok {
-			innerErr = ErrNotAuthorizedToIncreaseBalanceFromSvc
-			return false
-		}
-		if err := ibfs.handle(ctx, a, &h.svc); err != nil {
-			innerErr = errwrap.Wrap(ErrIncreaseBalanceFromSvcFailedInDomain, err)
-			return false
-		}
-		return true
-	})
-	if innerErr != nil {
-		return innerErr
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrIncreaseBalanceFromSvcLoadingFailed, loadErr)
 	}
-	if repoErr != nil {
-		return errwrap.Wrap(ErrIncreaseBalanceFromSvcFailedInRepository, repoErr)
+	// assert authorization via policy interface
+	if ok := h.p.Can(ctx, actor, "IncreaseBalanceFromSvc", a); !ok {
+		// return opaque error: handle potentially sensitive policy errors out-of-band!
+		return ErrNotAuthorizedToIncreaseBalanceFromSvc
+	}
+	// assert correct command handling by the domain
+	if ok := ibfs.Handle(ctx, a, &h.svc); !ok {
+		var domErr error
+		// ibfs is an ErrorKeeper
+		for i, e := range ibfs.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
+		}
+		return ErrIncreaseBalanceFromSvcFailedInDomain
+	}
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(ibfs))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrIncreaseBalanceFromSvcSavingFailed, saveErr)
 	}
 	return nil
 }

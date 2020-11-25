@@ -5,55 +5,66 @@ package command
 import (
 	"context"
 	errwrap "github.com/hashicorp/errwrap"
-	error1 "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error"
-	repository "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository"
-	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account"
+	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
+	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
 // Topic: Holder
 
 var (
-	// ErrValidateHolderNotIdentifiable signals that ValidateHolder's command object was not identifiable
-	ErrValidateHolderNotIdentifiable = error1.NewIdentificationError("ErrValidateHolderNotIdentifiable")
-	// ErrValidateHolderFailedInRepository signals that ValidateHolder failed in the repository layer
-	ErrValidateHolderFailedInRepository = error1.NewRepositoryError("ErrValidateHolderFailedInRepository")
+	// ErrValidateHolderHasNoTarget signals that ValidateHolder's target was not distinguishable
+	ErrValidateHolderHasNoTarget = errors.NewTargetIdentificationError("ErrValidateHolderHasNoTarget")
+	// ErrValidateHolderLoadingFailed signals that ValidateHolder storage failed to load the entity
+	ErrValidateHolderLoadingFailed = errors.NewStorageLoadingError("ErrValidateHolderLoadingFailed")
+	// ErrValidateHolderSavingFailed signals that ValidateHolder failed to save the entity
+	ErrValidateHolderSavingFailed = errors.NewStorageSavingError("ErrValidateHolderSavingFailed")
 	// ErrValidateHolderFailedInDomain signals that ValidateHolder failed in the domain layer
-	ErrValidateHolderFailedInDomain = error1.NewDomainError("ErrValidateHolderFailedInDomain")
+	ErrValidateHolderFailedInDomain = errors.NewDomainError("ErrValidateHolderFailedInDomain")
 )
 
-// ValidateHolderHandler knows how to perform ValidateHolder
-type ValidateHolderHandler struct {
-	agg repository.Repository
+// ValidateHolderHandlerWrapper knows how to perform ValidateHolder
+type ValidateHolderHandlerWrapper struct {
+	rw requires.StorageWriterReader
 }
 
-// NewValidateHolderHandler returns ValidateHolderHandler
-func NewValidateHolderHandler(agg repository.Repository) *ValidateHolderHandler {
-	if reflect.ValueOf(agg).IsZero() {
-		panic("no 'agg' provided!")
+// NewValidateHolderHandlerWrapper returns ValidateHolderHandlerWrapper
+func NewValidateHolderHandlerWrapper(rw requires.StorageWriterReader) *ValidateHolderHandlerWrapper {
+	if reflect.ValueOf(rw).IsZero() {
+		panic("no 'rw' provided!")
 	}
-	return &ValidateHolderHandler{agg: agg}
+	return &ValidateHolderHandlerWrapper{rw: rw}
 }
 
 // Handle generically performs ValidateHolder
-func (h ValidateHolderHandler) Handle(ctx context.Context, vh ValidateHolder) error {
-	if reflect.ValueOf(vh.Identifier()).IsZero() {
-		return ErrValidateHolderNotIdentifiable
+func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+	// assert that target is distinguishable
+	if !target.IsDistinguishable() {
+		return ErrValidateHolderHasNoTarget
 	}
-	var innerErr error
-	var repoErr error
-	repoErr = h.agg.Update(ctx, vh, func(a *account.Account) bool {
-		if err := vh.handle(ctx, a); err != nil {
-			innerErr = errwrap.Wrap(ErrValidateHolderFailedInDomain, err)
-			return false
+	// load entity from store; handle + wrap error
+	a, loadErr := h.rw.Load(ctx, target)
+	if loadErr != nil {
+		return errwrap.Wrap(ErrValidateHolderLoadingFailed, loadErr)
+	}
+	// assert correct command handling by the domain
+	if ok := vh.Handle(ctx, a); !ok {
+		var domErr error
+		// vh is an ErrorKeeper
+		for i, e := range vh.Errors() {
+			if i == 0 {
+				domErr = e
+			} else {
+				domErr = errwrap.Wrap(domErr, e)
+			}
 		}
-		return true
-	})
-	if innerErr != nil {
-		return innerErr
+		return ErrValidateHolderFailedInDomain
 	}
-	if repoErr != nil {
-		return errwrap.Wrap(ErrValidateHolderFailedInRepository, repoErr)
+	// save domain facts to storage
+	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(vh))
+	if saveErr != nil {
+		return errwrap.Wrap(ErrValidateHolderSavingFailed, saveErr)
 	}
 	return nil
 }

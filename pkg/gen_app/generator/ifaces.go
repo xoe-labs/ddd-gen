@@ -57,7 +57,7 @@ func genIfaceStorageWriterReader(f *File, entity QualId, useFactStorage bool) (t
 				Id("target").Id(
 					TargetDistinguishableIdent,
 				),
-				Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
+				Id("fk").Id(FactKeeper),
 			).Params(
 				Id("err").Id("error"),
 			)
@@ -103,12 +103,11 @@ func GenIfacePolicer(entity QualId) (f *File, typIdent string) {
 	return f, PolicyAdapterIfaceIdent
 }
 
-func genIfaceErrorKeeperCommandHandler(f *File, entity QualId) (typIdent string) {
+func genIfaceCommandHandler(f *File, entity QualId) {
 	entityShort := cmdShortForm(entity.Id)
-	f.Commentf("%s handles a command in the domain and keeps domain errors", ErrorKeeperCommandHandlerIdent)
-	f.Comment("application requires domain to implement this interface.")
+	f.Commentf("%s handles a command in the domain", CommandHandler)
 	f.Type().Id(
-		ErrorKeeperCommandHandlerIdent,
+		CommandHandler,
 	).Interface(
 		Commentf(
 			"%s handles the command on %s entity", CmdHandleMethodName, entity.Id,
@@ -122,6 +121,14 @@ func genIfaceErrorKeeperCommandHandler(f *File, entity QualId) (typIdent string)
 		).Params(
 			Id("bool"),
 		),
+	)
+}
+
+func genIfaceErrorKeeper(f *File) {
+	f.Commentf("%s keeps domain errors", ErrorKeeper)
+	f.Type().Id(
+		ErrorKeeper,
+	).Interface(
 		Commentf(
 			"%s knows how to return collected domain errors", ErrorKeeperCollectErrorsMethodName,
 		),
@@ -131,28 +138,62 @@ func genIfaceErrorKeeperCommandHandler(f *File, entity QualId) (typIdent string)
 			Index().Id("error"),
 		),
 	)
-	return ErrorKeeperCommandHandlerIdent
 }
 
-func genIfaceFactErrorKeeperCommandHandler(f *File) (typIdent string) {
-	f.Commentf("%s handles a command in the domain and keeps domain errors & facts", FactErrorKeeperCommandHandlerIdent)
-	f.Comment("application requires domain to implement this interface (in case storage is an event storage).")
+func genIfaceFactKeeper(f *File) {
+	f.Commentf("%s keeps domain facts", FactKeeper)
 	f.Type().Id(
-		FactErrorKeeperCommandHandlerIdent,
+		FactKeeper,
 	).Interface(
-		Id(
-			ErrorKeeperCommandHandlerIdent,
-		),
 		Commentf(
-			"%s knows how to return domain facts", StorageLoadMethodName,
+			"%s knows how to return domain facts", FactKeeperCollectFactsMethodName,
 		),
 		Id(
-			FactErrorKeeperCollectFactsMethodName,
+			FactKeeperCollectFactsMethodName,
 		).Params().Params(
 			Index().Interface(),
 		),
 	)
-	return FactErrorKeeperCommandHandlerIdent
+}
+
+func genIfaceDomainCommandHandler(f *File, entity QualId) (typIdent string) {
+	genIfaceCommandHandler(f, entity)
+	genIfaceErrorKeeper(f)
+	f.Commentf("%s handles a command in the domain and keeps domain errors", DomainCommandHandler)
+	f.Comment("application requires domain to implement this interface.")
+	f.Type().Id(
+		DomainCommandHandler,
+	).Interface(
+		Id(
+			CommandHandler,
+		),
+		Id(
+			ErrorKeeper,
+		),
+	)
+	return DomainCommandHandler
+}
+
+func genIfaceDomainCommandHandlerWithFacts(f *File, entity QualId) (typIdent string) {
+	genIfaceCommandHandler(f, entity)
+	genIfaceErrorKeeper(f)
+	genIfaceFactKeeper(f)
+	f.Commentf("%s handles a command in the domain and keeps domain errors & facts", DomainCommandHandler)
+	f.Comment("application requires domain to implement this interface.")
+	f.Type().Id(
+		DomainCommandHandler,
+	).Interface(
+		Id(
+			CommandHandler,
+		),
+		Id(
+			ErrorKeeper,
+		),
+		Id(
+			FactKeeper,
+		),
+	)
+	return DomainCommandHandler
 }
 
 func GenIfaceDistinguishableAssertable() (f *File, typIdent string) {
@@ -179,14 +220,14 @@ func GenStorageIface(entity QualId, useFactStorage bool) (f *File, storageReader
 	return ret, storageReader, storageReaderWriter
 }
 
-func GenCmdHandlerIface(entity QualId, useFactStorage bool) (f *File, cmd string, factCmd string) {
+func GenCmdHandlerIface(entity QualId, useFactStorage bool) (f *File, cmd, fk string) {
 	ret := NewFile("requires")
-	errorKeeperCommandHandlerTypeIdent := genIfaceErrorKeeperCommandHandler(ret, entity)
 	if useFactStorage {
-		factErrorKeeperCommandHandlerTypeIdent := genIfaceFactErrorKeeperCommandHandler(ret)
-		return ret, errorKeeperCommandHandlerTypeIdent, factErrorKeeperCommandHandlerTypeIdent
+		cmd = genIfaceDomainCommandHandlerWithFacts(ret, entity)
+		return ret, cmd, FactKeeper
 	}
-	return ret, errorKeeperCommandHandlerTypeIdent, ""
+	cmd = genIfaceDomainCommandHandler(ret, entity)
+	return ret, cmd, ""
 }
 
 func GenRequiredIfacesDoc() *File {
