@@ -21,12 +21,12 @@ func (t *Target) Identifier() string {
 	return fmt.Sprintf("%s-%s-%s-%s", t.Continent, t.Zone, t.Office, t.Id)
 }
 
-// IsDistinguishable implements the Distinguishable interface used by the
+// IsDistinguishable implements the DistinguishableAsserter interface used by the
 // application layer to assert valid targets
 func (t *Target) IsDistinguishable() bool {
-	// in this exapmle:
-	//   - continent and zone are not required to be identifiable
-	//   - for example, it might be used optionally for sharding
+	// in this example:
+	//   - continent and zone are not required for a target to be distinguishable
+	//   - for example, it might be used optionally for sharding or routing purposes
 	return t.Office != "" && t.Id != uuid.Nil
 }
 
