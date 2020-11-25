@@ -5,9 +5,8 @@ package command
 import (
 	"context"
 	errwrap "github.com/hashicorp/errwrap"
+	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
-	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
-	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -28,12 +27,12 @@ var (
 
 // DeleteAccountHandlerWrapper knows how to perform DeleteAccount
 type DeleteAccountHandlerWrapper struct {
-	rw requires.StorageWriterReader
-	p  requires.Policer
+	rw app.RequiresStorageWriterReader
+	p  app.RequiresPolicer
 }
 
 // NewDeleteAccountHandlerWrapper returns DeleteAccountHandlerWrapper
-func NewDeleteAccountHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *DeleteAccountHandlerWrapper {
+func NewDeleteAccountHandlerWrapper(rw app.RequiresStorageWriterReader, p app.RequiresPolicer) *DeleteAccountHandlerWrapper {
 	if reflect.ValueOf(rw).IsZero() {
 		panic("no 'rw' provided!")
 	}
@@ -44,7 +43,7 @@ func NewDeleteAccountHandlerWrapper(rw requires.StorageWriterReader, p requires.
 }
 
 // Handle generically performs DeleteAccount
-func (h DeleteAccountHandlerWrapper) Handle(ctx context.Context, da requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+func (h DeleteAccountHandlerWrapper) Handle(ctx context.Context, da app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrDeleteAccountHasNoTarget
@@ -73,7 +72,7 @@ func (h DeleteAccountHandlerWrapper) Handle(ctx context.Context, da requires.Dom
 		return ErrDeleteAccountFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(da))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(da))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrDeleteAccountSavingFailed, saveErr)
 	}

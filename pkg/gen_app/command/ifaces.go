@@ -19,7 +19,8 @@ const (
 	PolicyAdapterIdent    = "p"
 )
 
-func generateRequiredIfaces(genPath string, useFactStorage bool, objects *generator.Objects, adapters *generator.Adapters) error {
+func generateIfaces(genPath string, useFactStorage bool, objects *generator.Objects, adapters *generator.Adapters) error {
+	pkgName := "app"
 	// doc file
 	docFile := path.Join(genPath, "doc.go")
 	if fileExists(docFile) {
@@ -27,7 +28,7 @@ func generateRequiredIfaces(genPath string, useFactStorage bool, objects *genera
 			return err
 		}
 	}
-	gdf := generator.GenRequiredIfacesDoc()
+	gdf := generator.GenAppIfacesDoc(pkgName)
 	if err := gdf.Save(docFile); err != nil {
 		return err
 	}
@@ -49,7 +50,7 @@ func generateRequiredIfaces(genPath string, useFactStorage bool, objects *genera
 			return err
 		}
 	}
-	gsf, rTyp, rwTyp := generator.GenStorageIface(objects.Entity, useFactStorage)
+	gsf, rTyp, rwTyp := generator.GenStorageIface(objects.Entity, useFactStorage, pkgName)
 	if err := gsf.Save(storageFile); err != nil {
 		return err
 	}
@@ -75,7 +76,7 @@ func generateRequiredIfaces(genPath string, useFactStorage bool, objects *genera
 			return err
 		}
 	}
-	gpf, typ := generator.GenIfacePolicer(objects.Entity)
+	gpf, typ := generator.GenIfacePolicer(objects.Entity, pkgName)
 	if err := gpf.Save(policyFile); err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func generateRequiredIfaces(genPath string, useFactStorage bool, objects *genera
 			return err
 		}
 	}
-	gcf, cmd, fk := generator.GenCmdHandlerIface(objects.Entity, useFactStorage)
+	gcf, cmd, fk := generator.GenCmdHandlerIface(objects.Entity, useFactStorage, pkgName)
 	if err := gcf.Save(commandFile); err != nil {
 		return err
 	}
@@ -116,41 +117,10 @@ func generateRequiredIfaces(genPath string, useFactStorage bool, objects *genera
 			return err
 		}
 	}
-	gif, typ := generator.GenIfaceDistinguishableAssertable()
+	gif, typ := generator.GenIfaceDistinguishableAssertable(pkgName)
 	if err := gif.Save(identityFile); err != nil {
 		return err
 	}
-	objects.TargetIdAssertable = generator.QualId{
-		Qual: pkgPath,
-		Id:   typ,
-	}
-
-	return nil
-}
-
-func generateOfferedIfaces(genPath string, objects *generator.Objects) error {
-	// doc file
-	docFile := path.Join(genPath, "doc.go")
-	if fileExists(docFile) {
-		if err := os.Remove(docFile); err != nil {
-			return err
-		}
-	}
-	gdf := generator.GenOfferedIfacesDoc()
-	if err := gdf.Save(docFile); err != nil {
-		return err
-	}
-
-	// determin the fully qualified package path
-	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedName}, genPath)
-	if err != nil {
-		return err
-	}
-	pkgPath := pkgs[0].PkgPath
-	log.Printf("Generating package: %s\n", pkgPath)
-	log.Println("  using object interfaces ...")
-	log.Printf("\t%s\n", objects.Entity)
-	log.Printf("\t%s\n", objects.TargetIdAssertable)
 
 	// distinguishable related interfaces
 	distinguishableFile := path.Join(genPath, "distinguishable.go")
@@ -159,7 +129,7 @@ func generateOfferedIfaces(genPath string, objects *generator.Objects) error {
 			return err
 		}
 	}
-	gsf, disTyp := generator.GenIfaceDistinguishable(objects)
+	gsf, disTyp := generator.GenIfaceDistinguishable(pkgName)
 	if err := gsf.Save(distinguishableFile); err != nil {
 		return err
 	}
@@ -175,7 +145,7 @@ func generateOfferedIfaces(genPath string, objects *generator.Objects) error {
 			return err
 		}
 	}
-	gpf, polTyp := generator.GenIfacePoliceable()
+	gpf, polTyp := generator.GenIfacePoliceable(pkgName)
 	if err := gpf.Save(policeableFile); err != nil {
 		return err
 	}
@@ -183,6 +153,5 @@ func generateOfferedIfaces(genPath string, objects *generator.Objects) error {
 		Qual: pkgPath,
 		Id:   polTyp,
 	}
-
 	return nil
 }

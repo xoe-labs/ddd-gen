@@ -5,9 +5,8 @@ package command
 import (
 	"context"
 	errwrap "github.com/hashicorp/errwrap"
+	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
-	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
-	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -28,12 +27,12 @@ var (
 
 // MakeNewAccountWithOutIdHandlerWrapper knows how to perform MakeNewAccountWithOutId
 type MakeNewAccountWithOutIdHandlerWrapper struct {
-	rw requires.StorageWriterReader
-	p  requires.Policer
+	rw app.RequiresStorageWriterReader
+	p  app.RequiresPolicer
 }
 
 // NewMakeNewAccountWithOutIdHandlerWrapper returns MakeNewAccountWithOutIdHandlerWrapper
-func NewMakeNewAccountWithOutIdHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *MakeNewAccountWithOutIdHandlerWrapper {
+func NewMakeNewAccountWithOutIdHandlerWrapper(rw app.RequiresStorageWriterReader, p app.RequiresPolicer) *MakeNewAccountWithOutIdHandlerWrapper {
 	if reflect.ValueOf(rw).IsZero() {
 		panic("no 'rw' provided!")
 	}
@@ -44,7 +43,7 @@ func NewMakeNewAccountWithOutIdHandlerWrapper(rw requires.StorageWriterReader, p
 }
 
 // Handle generically performs MakeNewAccountWithOutId
-func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrMakeNewAccountWithOutIdHasNoTarget
@@ -73,7 +72,7 @@ func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawo
 		return ErrMakeNewAccountWithOutIdFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(mnawoi))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(mnawoi))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrMakeNewAccountWithOutIdSavingFailed, saveErr)
 	}

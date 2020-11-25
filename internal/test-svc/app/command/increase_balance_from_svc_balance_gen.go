@@ -5,10 +5,9 @@ package command
 import (
 	"context"
 	errwrap "github.com/hashicorp/errwrap"
+	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
 	ifaces "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces"
-	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
-	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -29,13 +28,13 @@ var (
 
 // IncreaseBalanceFromSvcHandlerWrapper knows how to perform IncreaseBalanceFromSvc
 type IncreaseBalanceFromSvcHandlerWrapper struct {
-	rw  requires.StorageWriterReader
-	p   requires.Policer
+	rw  app.RequiresStorageWriterReader
+	p   app.RequiresPolicer
 	svc ifaces.Balancer
 }
 
 // NewIncreaseBalanceFromSvcHandlerWrapper returns IncreaseBalanceFromSvcHandlerWrapper
-func NewIncreaseBalanceFromSvcHandlerWrapper(svc ifaces.Balancer, rw requires.StorageWriterReader, p requires.Policer) *IncreaseBalanceFromSvcHandlerWrapper {
+func NewIncreaseBalanceFromSvcHandlerWrapper(svc ifaces.Balancer, rw app.RequiresStorageWriterReader, p app.RequiresPolicer) *IncreaseBalanceFromSvcHandlerWrapper {
 	if reflect.ValueOf(svc).IsZero() {
 		panic("no 'svc' provided!")
 	}
@@ -49,7 +48,7 @@ func NewIncreaseBalanceFromSvcHandlerWrapper(svc ifaces.Balancer, rw requires.St
 }
 
 // Handle generically performs IncreaseBalanceFromSvc
-func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrIncreaseBalanceFromSvcHasNoTarget
@@ -78,7 +77,7 @@ func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs r
 		return ErrIncreaseBalanceFromSvcFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(ibfs))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(ibfs))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrIncreaseBalanceFromSvcSavingFailed, saveErr)
 	}

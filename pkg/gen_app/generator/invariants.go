@@ -7,16 +7,17 @@ package generator
 // have been too cumbersome to expose as configuration
 // They _could_ be configuration, there is just not much gain in it.
 const (
-	TargetDistinguishableIdent            string = "Distinguishable"
+	TargetDistinguishableIdent            string = "OffersDistinguishable"
+	TargetDistinguishableAssertableIdent         = "RequiresDistinguishableAssertable"
 	TargetDistinguishableIdMethod                = "Identifier"
 	TargetDistinguishableAssertMethodName        = "IsDistinguishable"
 
-	PoliceableIdent           = "Policeable"
-	PolicyAdapterIfaceIdent   = "Policer"
+	PoliceableIdent           = "OffersPoliceable"
+	PolicyAdapterIfaceIdent   = "RequiresPolicer"
 	PolicyAssertionMethodName = "Can"
 
-	StorageReaderIdent         = "StorageReader"
-	StorageWriterReaderIdent   = "StorageWriterReader"
+	StorageReaderIdent         = "RequiresStorageReader"
+	StorageWriterReaderIdent   = "RequiresStorageWriterReader"
 	StorageLoadMethodName      = "Load"
 	StorageSaveMethodName      = "Save"
 	StorageSaveFactsMethodName = "SaveFacts"
@@ -25,7 +26,7 @@ const (
 	CmdHandleMethodName                = "Handle"
 	ErrorKeeper                        = "errorKeeper"
 	ErrorKeeperCollectErrorsMethodName = "Errors"
-	FactKeeper                         = "FactKeeper"
+	FactKeeper                         = "OffersFactKeeper"
 	FactKeeperCollectFactsMethodName   = "Facts"
-	DomainCommandHandler               = "DomainCommandHandler"
+	DomainCommandHandler               = "RequiresDomainCommandHandler"
 )

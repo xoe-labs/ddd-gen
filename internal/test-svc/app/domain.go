@@ -1,4 +1,4 @@
-package requires
+package app
 
 import (
 	"context"
@@ -17,16 +17,16 @@ type errorKeeper interface {
 	Errors() []error
 }
 
-// FactKeeper keeps domain facts
-type FactKeeper interface {
+// OffersFactKeeper keeps domain facts
+type OffersFactKeeper interface {
 	// Facts knows how to return domain facts
 	Facts() []interface{}
 }
 
-// DomainCommandHandler handles a command in the domain and keeps domain errors & facts
+// RequiresDomainCommandHandler handles a command in the domain and keeps domain errors & facts
 // application requires domain to implement this interface.
-type DomainCommandHandler interface {
+type RequiresDomainCommandHandler interface {
 	commandHandler
 	errorKeeper
-	FactKeeper
+	OffersFactKeeper
 }

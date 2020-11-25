@@ -1,4 +1,4 @@
 
-package ifaces
+package app
 
 type Balancer interface{} // dummy adapter

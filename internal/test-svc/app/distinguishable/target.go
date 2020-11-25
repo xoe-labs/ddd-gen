@@ -1,7 +1,9 @@
-package app
+package distinguishable
 
 import (
 	"fmt"
+
+	"github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 
 	"github.com/satori/go.uuid"
 )
@@ -19,11 +21,16 @@ func (t *Target) Identifier() string {
 	return fmt.Sprintf("%s-%s-%s-%s", t.Continent, t.Zone, t.Office, t.Id)
 }
 
-// isDistinguishable implements the Distinguishable interface used by the
+// IsDistinguishable implements the Distinguishable interface used by the
 // application layer to assert valid targets
-func (t *Target) isDistinguishable() bool {
+func (t *Target) IsDistinguishable() bool {
 	// in this exapmle:
 	//   - continent and zone are not required to be identifiable
 	//   - for example, it might be used optionally for sharding
 	return t.Office != "" && t.Id != uuid.Nil
 }
+
+var (
+	_ app.RequiresDistinguishableAssertable = (*Target)(nil)
+	_ app.OffersDistinguishable = (*Target)(nil)
+)

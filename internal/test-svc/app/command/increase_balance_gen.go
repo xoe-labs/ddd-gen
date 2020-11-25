@@ -5,9 +5,8 @@ package command
 import (
 	"context"
 	errwrap "github.com/hashicorp/errwrap"
+	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
-	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
-	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -28,12 +27,12 @@ var (
 
 // IncreaseBalanceHandlerWrapper knows how to perform IncreaseBalance
 type IncreaseBalanceHandlerWrapper struct {
-	rw requires.StorageWriterReader
-	p  requires.Policer
+	rw app.RequiresStorageWriterReader
+	p  app.RequiresPolicer
 }
 
 // NewIncreaseBalanceHandlerWrapper returns IncreaseBalanceHandlerWrapper
-func NewIncreaseBalanceHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *IncreaseBalanceHandlerWrapper {
+func NewIncreaseBalanceHandlerWrapper(rw app.RequiresStorageWriterReader, p app.RequiresPolicer) *IncreaseBalanceHandlerWrapper {
 	if reflect.ValueOf(rw).IsZero() {
 		panic("no 'rw' provided!")
 	}
@@ -44,7 +43,7 @@ func NewIncreaseBalanceHandlerWrapper(rw requires.StorageWriterReader, p require
 }
 
 // Handle generically performs IncreaseBalance
-func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrIncreaseBalanceHasNoTarget
@@ -73,7 +72,7 @@ func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib requires.D
 		return ErrIncreaseBalanceFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(ib))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(ib))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrIncreaseBalanceSavingFailed, saveErr)
 	}

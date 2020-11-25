@@ -5,9 +5,8 @@ package command
 import (
 	"context"
 	errwrap "github.com/hashicorp/errwrap"
+	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
-	offers "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/offers"
-	requires "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces/requires"
 	"reflect"
 )
 
@@ -28,12 +27,12 @@ var (
 
 // MakeNewAccountHandlerWrapper knows how to perform MakeNewAccount
 type MakeNewAccountHandlerWrapper struct {
-	rw requires.StorageWriterReader
-	p  requires.Policer
+	rw app.RequiresStorageWriterReader
+	p  app.RequiresPolicer
 }
 
 // NewMakeNewAccountHandlerWrapper returns MakeNewAccountHandlerWrapper
-func NewMakeNewAccountHandlerWrapper(rw requires.StorageWriterReader, p requires.Policer) *MakeNewAccountHandlerWrapper {
+func NewMakeNewAccountHandlerWrapper(rw app.RequiresStorageWriterReader, p app.RequiresPolicer) *MakeNewAccountHandlerWrapper {
 	if reflect.ValueOf(rw).IsZero() {
 		panic("no 'rw' provided!")
 	}
@@ -44,7 +43,7 @@ func NewMakeNewAccountHandlerWrapper(rw requires.StorageWriterReader, p requires
 }
 
 // Handle generically performs MakeNewAccount
-func (h MakeNewAccountHandlerWrapper) Handle(ctx context.Context, mna requires.DomainCommandHandler, actor offers.Policeable, target offers.Distinguishable) error {
+func (h MakeNewAccountHandlerWrapper) Handle(ctx context.Context, mna app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrMakeNewAccountHasNoTarget
@@ -73,7 +72,7 @@ func (h MakeNewAccountHandlerWrapper) Handle(ctx context.Context, mna requires.D
 		return ErrMakeNewAccountFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, requires.FactKeeper(mna))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(mna))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrMakeNewAccountSavingFailed, saveErr)
 	}

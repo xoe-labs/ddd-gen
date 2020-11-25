@@ -4,10 +4,34 @@
 package generator
 
 import (
+	"fmt"
 	. "github.com/dave/jennifer/jen"
 )
 
 // Application contracts (required and offered) ...
+
+func GenAppIfacesDoc(pkgName string) *File {
+	ret := NewFile(pkgName)
+	ret.PackageComment(
+		fmt.Sprintf(
+			"Package %s declares interfaces which the application layer either requires or offers.",
+			pkgName,
+		),
+	)
+	ret.PackageComment("")
+	ret.PackageComment("By convention, the following prefixes further qualify the interfaces:")
+	ret.PackageComment("\tOffers*")
+	ret.PackageComment("\tRequires*")
+	ret.PackageComment("")
+	ret.PackageComment("The name of the go file (e.g. `storage.go`) signifies the adapter or object of the interface.")
+	ret.PackageComment("")
+	ret.PackageComment(
+		fmt.Sprintf("Names terminating in 'able' represent types for which %s offers an implementation:", pkgName),
+	)
+	ret.PackageComment("Adapters or ports shall understand those interface types as common language comming from external services")
+	ret.PackageComment("Hence, their implementation is part of the package's public api.")
+	return ret
+}
 
 // Required interfaces ...
 
@@ -81,9 +105,9 @@ func genIfaceStorageWriterReader(f *File, entity QualId, useFactStorage bool) (t
 	return StorageWriterReaderIdent
 }
 
-func GenIfacePolicer(entity QualId) (f *File, typIdent string) {
+func GenIfacePolicer(entity QualId, pkgName string) (f *File, typIdent string) {
 	entityShort := cmdShortForm(entity.Id)
-	f = NewFile("requires")
+	f = NewFile(pkgName)
 	f.Commentf("%s knows to make decisions on access policy", PolicyAdapterIfaceIdent)
 	f.Comment("application requires policy adapter to implement this interface.")
 	f.Type().Id(
@@ -196,12 +220,12 @@ func genIfaceDomainCommandHandlerWithFacts(f *File, entity QualId) (typIdent str
 	return DomainCommandHandler
 }
 
-func GenIfaceDistinguishableAssertable() (f *File, typIdent string) {
-	f = NewFile("requires")
-	f.Commentf("%sAssertable can be asserted to be distinguishable", TargetDistinguishableIdent)
+func GenIfaceDistinguishableAssertable(pkgName string) (f *File, typIdent string) {
+	f = NewFile(pkgName)
+	f.Commentf("%s can be asserted to be distinguishable", TargetDistinguishableAssertableIdent)
 	f.Commentf("application requires to be able to assert that %s can actually be identified", TargetDistinguishableIdent)
 	f.Type().Id(
-		TargetDistinguishableIdent+"Assertable",
+		TargetDistinguishableAssertableIdent,
 	).Interface(
 		Commentf("%s knows how to assert that a potential %s can be actually identified", TargetDistinguishableAssertMethodName, TargetDistinguishableIdent),
 		Id(
@@ -210,18 +234,18 @@ func GenIfaceDistinguishableAssertable() (f *File, typIdent string) {
 			Id("bool"),
 		),
 	)
-	return f, TargetDistinguishableIdent + "Assertable"
+	return f, TargetDistinguishableAssertableIdent
 }
 
-func GenStorageIface(entity QualId, useFactStorage bool) (f *File, storageReaderTypeIdent, storageReaderWriterTypeIdent string) {
-	ret := NewFile("requires")
+func GenStorageIface(entity QualId, useFactStorage bool, pkgName string) (f *File, storageReaderTypeIdent, storageReaderWriterTypeIdent string) {
+	ret := NewFile(pkgName)
 	storageReader := genIfaceStorageReader(ret, entity)
 	storageReaderWriter := genIfaceStorageWriterReader(ret, entity, useFactStorage)
 	return ret, storageReader, storageReaderWriter
 }
 
-func GenCmdHandlerIface(entity QualId, useFactStorage bool) (f *File, cmd, fk string) {
-	ret := NewFile("requires")
+func GenCmdHandlerIface(entity QualId, useFactStorage bool, pkgName string) (f *File, cmd, fk string) {
+	ret := NewFile(pkgName)
 	if useFactStorage {
 		cmd = genIfaceDomainCommandHandlerWithFacts(ret, entity)
 		return ret, cmd, FactKeeper
@@ -230,26 +254,17 @@ func GenCmdHandlerIface(entity QualId, useFactStorage bool) (f *File, cmd, fk st
 	return ret, cmd, ""
 }
 
-func GenRequiredIfacesDoc() *File {
-	ret := NewFile("requires")
-	ret.PackageComment("Package requires declares interfaces the application layer requires")
-	return ret
-}
-
 // Offered interfaces ...
 
-func GenIfaceDistinguishable(objects *Objects) (f *File, typIdent string) {
-	f = NewFile("offers")
+func GenIfaceDistinguishable(pkgName string) (f *File, typIdent string) {
+	f = NewFile(pkgName)
 	f.Commentf("%s can be identified", TargetDistinguishableIdent)
 	f.Commentf("application implements %s and thereby offers storage adapter and external consumers a common language to reason about identity", TargetDistinguishableIdent)
 	f.Commentf("TODO: implement %s", TargetDistinguishableIdent)
 	f.Type().Id(
 		TargetDistinguishableIdent,
 	).Interface(
-		Qual(
-			objects.TargetIdAssertable.Qual,
-			objects.TargetIdAssertable.Id,
-		),
+		Id(TargetDistinguishableAssertableIdent),
 		Commentf("%s knows how to identify %s", TargetDistinguishableIdMethod, TargetDistinguishableIdent),
 		Comment("TODO: adapt return type to your needs "),
 		Id(
@@ -261,8 +276,8 @@ func GenIfaceDistinguishable(objects *Objects) (f *File, typIdent string) {
 	return f, TargetDistinguishableIdent
 }
 
-func GenIfacePoliceable() (f *File, typIdent string) {
-	f = NewFile("offers")
+func GenIfacePoliceable(pkgName string) (f *File, typIdent string) {
+	f = NewFile(pkgName)
 	f.Commentf("%s is an actor that can be policed", PoliceableIdent)
 	f.Commentf("application implements %s and thereby offers policy adapter and external consumers a common language to reason about a policeable actor", PoliceableIdent)
 	f.Commentf("TODO: implement %s", PoliceableIdent)
@@ -283,10 +298,4 @@ func GenIfacePoliceable() (f *File, typIdent string) {
 		),
 	)
 	return f, PoliceableIdent
-}
-
-func GenOfferedIfacesDoc() *File {
-	ret := NewFile("offers")
-	ret.PackageComment("Package offers declares interfaces the application offers")
-	return ret
 }

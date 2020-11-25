@@ -21,7 +21,6 @@ type Adapters struct {
 // Objects are represented by application level or domain interfaces
 type Objects struct {
 	Target               QualId // target represents a distinguishable entity
-	TargetIdAssertable   QualId // target id assertable represents a target that can be asserted to be distinguishable
 	Entity               QualId // entity represents a non-distinguishable concrete entity
 	Actor                QualId // actor represents the caller of a command
 	FactKeeper           QualId // fact keeper keeps domain facts
