@@ -5,15 +5,22 @@ type AuthorizationError string
 func (e AuthorizationError) Error() string                { return string(e) }
 func NewAuthorizationError(msg string) AuthorizationError { return AuthorizationError(msg) }
 
-type IdentificationError string
+type TargetIdentificationError string
 
-func (e IdentificationError) Error() string                 { return string(e) }
-func NewIdentificationError(msg string) IdentificationError { return IdentificationError(msg) }
+func (e TargetIdentificationError) Error() string { return string(e) }
+func NewTargetIdentificationError(msg string) TargetIdentificationError {
+	return TargetIdentificationError(msg)
+}
 
-type RepositoryError string
+type StorageLoadingError string
 
-func (e RepositoryError) Error() string             { return string(e) }
-func NewRepositoryError(msg string) RepositoryError { return RepositoryError(msg) }
+func (e StorageLoadingError) Error() string                 { return string(e) }
+func NewStorageLoadingError(msg string) StorageLoadingError { return StorageLoadingError(msg) }
+
+type StorageSavingError string
+
+func (e StorageSavingError) Error() string                { return string(e) }
+func NewStorageSavingError(msg string) StorageSavingError { return StorageSavingError(msg) }
 
 type DomainError string
 

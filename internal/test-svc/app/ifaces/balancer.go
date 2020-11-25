@@ -1,4 +1,4 @@
 
-package balancer
+package ifaces
 
 type Balancer interface{} // dummy adapter

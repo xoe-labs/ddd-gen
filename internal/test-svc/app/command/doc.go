@@ -1,2 +1,2 @@
-// Package command implements application layer commands
+// Package command implements application layer command wrappers
 package command

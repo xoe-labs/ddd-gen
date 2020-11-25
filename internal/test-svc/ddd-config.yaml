@@ -1,12 +1,8 @@
-aggregate:    "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/account.Account"
-identifiable: "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository.Identifiable"
-repository:   "github.com/xoe-labs/ddd-gen/internal/test-svc/app/repository.Repository"
-policeable:   "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy.Policeable"
-policer:      "github.com/xoe-labs/ddd-gen/internal/test-svc/app/policy.Policer"
 
-# application layer leaf errors
-authorizationErrorNew:  "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error.NewAuthorizationError"
-identificationErrorNew: "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error.NewIdentificationError"
-# well-known sentinel wrappers
-repositoryErrorNew:     "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error.NewRepositoryError"
-domainErrorNew:         "github.com/xoe-labs/ddd-gen/internal/test-svc/app/error.NewDomainError"
+entity:                       "github.com/xoe-labs/ddd-gen/internal/test-svc/domain.Account"
+# Error Contructors
+authorizationErrorNew:        "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors.NewAuthorizationError"
+targetIdentificationErrorNew: "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors.NewTargetIdentificationError"
+storageLoadingErrorNew:       "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors.NewStorageLoadingError"
+storageSavingErrorNew:        "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors.NewStorageSavingError"
+domainErrorNew:               "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors.NewDomainError"

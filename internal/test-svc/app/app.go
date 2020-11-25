@@ -12,13 +12,13 @@ type Application struct {
 
 //go:generate go run ../../../main.go --config ../ddd-config.yaml app command -t Commands
 type Commands struct {
-	MakeNewAccount          command.MakeNewAccountHandler          `command:"new"`
-	MakeNewAccountWithOutId command.MakeNewAccountWithOutIdHandler `command:"new,non-identifiable; topic,account"`
-	DeleteAccount           command.DeleteAccountHandler           `command:"del"`
-	BlockAccount            command.BlockAccountHandler            ``
-	ValidateHolder          command.BlockAccountHandler            `command:"w/o policy"`
-	IncreaseBalance         command.IncreaseBalanceHandler         ``
-	IncreaseBalanceFromSvc  command.IncreaseBalanceHandler         `command:"topic,balance; adapters,svc:github.com/xoe-labs/ddd-gen/internal/test-svc/app/balancer.Balancer"`
+	MakeNewAccount          command.MakeNewAccountHandlerWrapper          ``
+	MakeNewAccountWithOutId command.MakeNewAccountWithOutIdHandlerWrapper `command:"topic,account"`
+	DeleteAccount           command.DeleteAccountHandlerWrapper           ``
+	BlockAccount            command.BlockAccountHandlerWrapper            ``
+	ValidateHolder          command.BlockAccountHandlerWrapper            `command:"w/o policy"`
+	IncreaseBalance         command.IncreaseBalanceHandlerWrapper         ``
+	IncreaseBalanceFromSvc  command.IncreaseBalanceHandlerWrapper         `command:"topic,balance; adapters,svc:github.com/xoe-labs/ddd-gen/internal/test-svc/app/balancer.Balancer"`
 }
 
 type Queries struct {
