@@ -1,7 +1,7 @@
 // Copyright © 2020 David Arnold <dar@xoe.solutions>
 // SPDX-License-Identifier: MIT
 
-package entity
+package gen_domain
 
 import (
 	"fmt"
@@ -67,7 +67,7 @@ func Gen(sourceTypeName, validatorMethod string) error {
 	}
 
 	// Generate code using jennifer
-	err = generate(sourceTypeName, validatorMethod, goPackagePath, structType)
+	err = generateEntityHelperMethods(sourceTypeName, validatorMethod, goPackagePath, structType)
 	if err != nil {
 		return err
 	}

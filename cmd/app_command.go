@@ -24,7 +24,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/xoe-labs/ddd-gen/pkg/gen_app/command"
+	"github.com/xoe-labs/ddd-gen/pkg/gen_app"
 )
 
 // appCommandCmd represents the app command
@@ -88,7 +88,7 @@ var appCommandCmd = &cobra.Command{
     }
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := command.NewConfig(
+		cfg, err := gen_app.NewConfig(
 			viper.GetString("entity"),
 			viper.GetString("authorizationErrorNew"),
 			viper.GetString("targetIdentificationErrorNew"),
@@ -99,7 +99,7 @@ var appCommandCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return command.Gen(sourceType, useFactStorage, cfg)
+		return gen_app.Gen(sourceType, useFactStorage, cfg)
 	},
 }
 

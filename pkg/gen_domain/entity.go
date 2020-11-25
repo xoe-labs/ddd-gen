@@ -1,7 +1,7 @@
 // Copyright © 2020 David Arnold <dar@xoe.solutions>
 // SPDX-License-Identifier: MIT
 
-package entity
+package gen_domain
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ var (
 	structEqualTagPattern    = regexp.MustCompile(`equal(,reflect)?`)
 )
 
-func generate(sourceTypeName, validatorMethod, goPackagePath string, structType *types.Struct) error {
+func generateEntityHelperMethods(sourceTypeName, validatorMethod, goPackagePath string, structType *types.Struct) error {
 	log.Printf("Generating code for: %s.%s\n", goPackagePath, sourceTypeName)
 
 	// Start a new file in this package

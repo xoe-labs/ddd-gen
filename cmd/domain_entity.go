@@ -23,7 +23,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/xoe-labs/ddd-gen/pkg/gen_domain/entity"
+	"github.com/xoe-labs/ddd-gen/pkg/gen_domain"
 )
 
 var (
@@ -69,7 +69,7 @@ var domainEntityCmd = &cobra.Command{
     Example: a caller can mutate the value.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return entity.Gen(sourceType, validatorMethod)
+		return gen_domain.Gen(sourceType, validatorMethod)
 	},
 }
 
