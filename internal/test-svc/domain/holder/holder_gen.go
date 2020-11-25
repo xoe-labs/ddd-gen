@@ -44,12 +44,12 @@ func MustNew(uuid string, name string, bday time.Time, hTyp HolderType) *Holder 
 
 // Marshalers ...
 
-// UnmarshalFromRepository unmarshals Holder from the repository so that non-constructable
+// UnmarshalFromStore unmarshals Holder from the repository so that non-constructable
 // private fields can still be initialized from (private) repository state
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromRepository(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
+func UnmarshalFromStore(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
 	h := MustNew(uuid, name, bday, hTyp)
 	return h
 }

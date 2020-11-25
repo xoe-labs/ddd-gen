@@ -45,12 +45,12 @@ func MustNew(uuid string, holder holder.Holder, altHolders []holder.Holder, hold
 
 // Marshalers ...
 
-// UnmarshalFromRepository unmarshals Account from the repository so that non-constructable
+// UnmarshalFromStore unmarshals Account from the repository so that non-constructable
 // private fields can still be initialized from (private) repository state
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromRepository(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string, balance int64, values []int64) *Account {
+func UnmarshalFromStore(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string, balance int64, values []int64) *Account {
 	a := MustNew(uuid, holder, altHolders, holderRoles, address)
 	a.balance = balance
 	a.values = values
