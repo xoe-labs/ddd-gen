@@ -8,19 +8,20 @@ import (
 	"log"
 )
 
-func GenFuncHandleStub(g *Group, typ string, entity QualId) (ident string) {
+func GenFuncHandleStub(f *File, typ string, entity QualId) (ident string) {
 	log.Printf("%s: generating '%s()'\n", typ, Handle)
 
-	g.Commentf("%s handles %s in the domain", Handle, typ)
-	g.Comment("returns true for success or false for failure.")
-	g.Commentf("record errors with %s(err).", Raise)
-	g.Comment("implements application layer's CommandHandler interface.")
+	f.Commentf("%s handles %s in the domain", Handle, typ)
+	f.Comment("returns true for success or false for failure.")
+	f.Commentf("record errors with %s.%s(err).", cmdShortForm(typ), Raise)
+	f.Comment("implements application layer's CommandHandler interface.")
 
-	g.Func().Params(
+	f.Func().Params(
 		Id(cmdShortForm(typ)).Op("*").Id(typ),
 	).Id(
 		Handle,
 	).Params(
+		Id("ctx").Qual("context", "Context"),
 		Id(shortForm(entity.Id)).Op("*").Qual(entity.Qual, entity.Id),
 	).Params(
 		Id("bool"),

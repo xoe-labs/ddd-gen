@@ -1,4 +1,4 @@
-
+domain:                       "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
 entity:                       "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/Account.Account"
 # Error Contructors
 authorizationErrorNew:        "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors.NewAuthorizationError"

@@ -90,6 +90,7 @@ var appCommandCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := gen_app.NewConfig(
 			viper.GetString("entity"),
+			viper.GetString("domain"),
 			viper.GetString("authorizationErrorNew"),
 			viper.GetString("targetIdentificationErrorNew"),
 			viper.GetString("storageLoadingErrorNew"),

@@ -130,7 +130,7 @@ func addCommandFuncHandle(f *File,
 		"Handle",
 	).Params(
 		Id("ctx").Qual("context", "Context"),
-		Id(cmdShortForm(DoSomething)).Qual(objects.DomainCommandHandler.Qual, objects.DomainCommandHandler.Id),
+		Id(cmdShortForm(DoSomething)).Qual(objects.Domain.Qual, DoSomething),
 		Id("actor").Qual(objects.Actor.Qual, objects.Actor.Id),
 		Id("target").Qual(objects.Target.Qual, objects.Target.Id),
 	).Parens(
@@ -207,7 +207,6 @@ func addCommandFuncHandle(f *File,
 			Op("!").Id("ok"),
 		).Block(
 			Var().Id("domErr").Id("error"),
-			Commentf("%s is an ErrorKeeper", cmdShortForm(DoSomething)),
 			For(
 				List(
 					Id("i"),
@@ -244,7 +243,14 @@ func addCommandFuncHandle(f *File,
 			).Call(
 				Id("ctx"),
 				Id("target"),
-				Qual(objects.FactKeeper.Qual, objects.FactKeeper.Id).Call(Id(cmdShortForm(DoSomething))),
+				Qual(
+					objects.FactKeeper.Qual,
+					objects.FactKeeper.Id,
+				).Call(
+					Op("&").Id(
+						cmdShortForm(DoSomething),
+					),
+				),
 			)
 			g.If(
 				Id("saveErr").Op("!=").Id("nil"),
@@ -285,6 +291,47 @@ func addCommandFuncHandle(f *File,
 	})
 }
 
+func addCommandHandlerWrapperTypeAssertions(f *File, DoSomething string, useFactStorage bool, objects Objects) {
+	f.Comment("compile time assertions")
+	f.Var().DefsFunc(func(g *Group) {
+		g.Id("_").Qual(
+			objects.CommandHandler.Qual,
+			objects.CommandHandler.Id,
+		).Op("=").Parens(
+			Op("*").Qual(
+				objects.Domain.Qual,
+				DoSomething,
+			),
+		).Call(
+			Id("nil"),
+		)
+		g.Id("_").Qual(
+			objects.ErrorKeeper.Qual,
+			objects.ErrorKeeper.Id,
+		).Op("=").Parens(
+			Op("*").Qual(
+				objects.Domain.Qual,
+				DoSomething,
+			),
+		).Call(
+			Id("nil"),
+		)
+		if useFactStorage {
+			g.Id("_").Qual(
+				objects.FactKeeper.Qual,
+				objects.FactKeeper.Id,
+			).Op("=").Parens(
+				Op("*").Qual(
+					objects.Domain.Qual,
+					DoSomething,
+				),
+			).Call(
+				Id("nil"),
+			)
+		}
+	})
+}
+
 // Composers ...
 
 func GenCommandHandlerWrapper(cmd,
@@ -313,6 +360,9 @@ func GenCommandHandlerWrapper(cmd,
 		useFactStorage,
 		objects,
 		adapters)
+	addCommandHandlerWrapperTypeAssertions(ret, cmd,
+		useFactStorage,
+		objects)
 	return ret
 }
 

@@ -20,6 +20,6 @@ func generateCommandHelperMethods(f *jen.File, typ string, entity generator.Qual
 	_ = generator.GenFuncrecordOn(f, typ, entity)
 }
 
-func generateCommandHandleStub(g *jen.Group, typ string, entity generator.QualId) {
-	_ = generator.GenFuncHandleStub(g, typ, entity)
+func generateCommandHandleStub(f *jen.File, typ string, entity generator.QualId) {
+	_ = generator.GenFuncHandleStub(f, typ, entity)
 }

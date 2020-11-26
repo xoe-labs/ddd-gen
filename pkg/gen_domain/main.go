@@ -25,6 +25,7 @@ var (
 	goFile         string
 	goPackagePath  string
 	goPackage      string
+	baseFilename   string
 	targetFilename string
 	cwd            string
 	pkg            *packages.Package
@@ -32,10 +33,11 @@ var (
 
 func GenEntity(typ, validatorMethod string) (err error) {
 	var (
-		f         *jen.File
-		ok        bool
-		obj       types.Object
-		typStruct *types.Struct
+		f          *jen.File
+		ok         bool
+		obj        types.Object
+		typStruct  *types.Struct
+		sourceFile *os.File
 	)
 
 	err = initMain()
@@ -67,28 +69,11 @@ func GenEntity(typ, validatorMethod string) (err error) {
 	if err != nil {
 		return err
 	}
-	return f.Save(targetFilename)
-}
-
-func GenCommandHandler(cfg *Config) (err error) {
-	var (
-		f          *jen.File
-		sourceFile *os.File
-	)
-	err = initMain()
-	if err != nil {
-		return err
-	}
-	log.Printf("Generating code for: %s.%s\n", goPackagePath, cfg.Typ)
-	f = jen.NewFilePathName(goPackagePath, goPackage)
-	// Generate code using jennifer
-	generateCommandHelperMethods(f, cfg.Typ, cfg.Entity)
 	err = f.Save(targetFilename)
 	if err != nil {
 		return err
 	}
-
-	found, err := inspectFileForMethod(goFile, cfg.Typ, "Handle")
+	found, err := inspectPackageForMethod(goFile, typ, "Apply")
 	if err != nil {
 		return err
 	}
@@ -96,10 +81,9 @@ func GenCommandHandler(cfg *Config) (err error) {
 		return nil
 	}
 
-	// Add HandleMethodStub on the invoking file
-	// f = jen.NewFilePathName(goPackagePath, "")
+	// Add Apply method stub on the invoking file
 	s := jen.CustomFunc(jen.Options{Multi: true}, func(g *jen.Group) {
-		generateCommandHandleStub(g, cfg.Typ, cfg.Entity)
+		generateEntityApplyStub(g, typ)
 	})
 	buf := &bytes.Buffer{}
 	err = s.Render(buf)
@@ -116,6 +100,38 @@ func GenCommandHandler(cfg *Config) (err error) {
 		return err
 	}
 	return nil
+}
+
+func GenCommandHandler(cfg *Config) (err error) {
+	var (
+		f *jen.File
+	)
+	err = initMain()
+	if err != nil {
+		return err
+	}
+	log.Printf("Generating code for: %s.%s\n", goPackagePath, cfg.Typ)
+	f = jen.NewFilePathName(goPackagePath, goPackage)
+	// Generate code using jennifer
+	generateCommandHelperMethods(f, cfg.Typ, cfg.Entity)
+	err = f.Save(targetFilename)
+	if err != nil {
+		return err
+	}
+
+	// Handle already in source file
+	found, err := inspectPackageForMethod(goFile, cfg.Typ, "Handle")
+	if err != nil {
+		return err
+	}
+	if found {
+		return nil
+	}
+
+	// Add Handle method stub on the invoking file
+	f = jen.NewFilePath(goPackagePath)
+	generateCommandHandleStub(f, cfg.Typ, cfg.Entity)
+	return f.Save(baseFilename + "_handle.go")
 }
 
 func loadPackage(path string) (*packages.Package, error) {
@@ -142,7 +158,7 @@ func initMain() (err error) {
 	// Build the target file name
 	goFile = os.Getenv("GOFILE")
 	ext := filepath.Ext(goFile)
-	baseFilename := goFile[0 : len(goFile)-len(ext)]
+	baseFilename = goFile[0 : len(goFile)-len(ext)]
 	targetFilename = baseFilename + "_gen.go"
 
 	// Remove existing target file (before loading the package)
@@ -161,7 +177,7 @@ func initMain() (err error) {
 	return nil
 }
 
-func inspectFileForMethod(file, typ, method string) (found bool, err error) {
+func inspectPackageForMethod(file, typ, method string) (found bool, err error) {
 	fset := token.NewFileSet()
 	ctx := build.Default
 	pkg, err := ctx.Import(file, ".", 0)
@@ -169,7 +185,7 @@ func inspectFileForMethod(file, typ, method string) (found bool, err error) {
 		return false, err
 	}
 
-	log.Printf("... inspecting:\t%s\n", pkg.Dir)
+	log.Printf("... inspecting: %s: %s for %s\n", pkg.Dir, typ, method)
 	// log.Println("pkgName:", pkg.Name)
 
 	astPkgs, err := parser.ParseDir(fset, pkg.Dir, nil, 0)
@@ -214,4 +230,12 @@ func inspectFileForMethod(file, typ, method string) (found bool, err error) {
 
 	})
 	return found, nil
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }

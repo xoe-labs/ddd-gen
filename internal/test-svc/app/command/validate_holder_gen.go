@@ -7,6 +7,7 @@ import (
 	errwrap "github.com/hashicorp/errwrap"
 	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	domain "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
 	"reflect"
 )
 
@@ -37,7 +38,7 @@ func NewValidateHolderHandlerWrapper(rw app.RequiresStorageWriterReader) *Valida
 }
 
 // Handle generically performs ValidateHolder
-func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh domain.ValidateHolder, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrValidateHolderHasNoTarget
@@ -50,7 +51,6 @@ func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh app.Require
 	// assert correct command handling by the domain
 	if ok := vh.Handle(ctx, a); !ok {
 		var domErr error
-		// vh is an ErrorKeeper
 		for i, e := range vh.Errors() {
 			if i == 0 {
 				domErr = e
@@ -61,9 +61,16 @@ func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh app.Require
 		return ErrValidateHolderFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(vh))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(&vh))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrValidateHolderSavingFailed, saveErr)
 	}
 	return nil
 }
+
+// compile time assertions
+var (
+	_ app.RequiresCommandHandler = (*domain.ValidateHolder)(nil)
+	_ app.RequiresErrorKeeper    = (*domain.ValidateHolder)(nil)
+	_ app.OffersFactKeeper       = (*domain.ValidateHolder)(nil)
+)

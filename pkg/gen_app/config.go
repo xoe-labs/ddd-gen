@@ -19,6 +19,7 @@ type Config struct {
 
 func NewConfig(
 	entity,
+	domain,
 	authorizationErrorNew,
 	targetIdentificationErrorNew,
 	storageLoadingErrorNew,
@@ -27,6 +28,9 @@ func NewConfig(
 ) (*Config, error) {
 	if !isValidQualId(entity) {
 		return nil, fmt.Errorf("'%s' is not a valid full qualifier entity", entity)
+	}
+	if isValidQualId(domain) || domain == "" {
+		return nil, fmt.Errorf("'%s' is not a valid domain iport path", domain)
 	}
 	if !isValidQualId(authorizationErrorNew) {
 		return nil, fmt.Errorf("'%s' is not a valid full qualifier authorizationErrorNew", authorizationErrorNew)
@@ -46,7 +50,10 @@ func NewConfig(
 	return &Config{
 		Adapters: generator.Adapters{},
 		Objects: generator.Objects{
-			Entity:     splitQual(entity),
+			Entity: splitQual(entity),
+			Domain: generator.QualId{
+				Qual: domain,
+			},
 		},
 		Errors: generator.Errors{
 			AuthorizationErrorNew:        splitQual(authorizationErrorNew),

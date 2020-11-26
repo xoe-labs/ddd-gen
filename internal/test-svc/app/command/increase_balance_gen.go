@@ -7,6 +7,7 @@ import (
 	errwrap "github.com/hashicorp/errwrap"
 	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	domain "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
 	"reflect"
 )
 
@@ -43,7 +44,7 @@ func NewIncreaseBalanceHandlerWrapper(rw app.RequiresStorageWriterReader, p app.
 }
 
 // Handle generically performs IncreaseBalance
-func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib domain.IncreaseBalance, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrIncreaseBalanceHasNoTarget
@@ -61,7 +62,6 @@ func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib app.Requir
 	// assert correct command handling by the domain
 	if ok := ib.Handle(ctx, a); !ok {
 		var domErr error
-		// ib is an ErrorKeeper
 		for i, e := range ib.Errors() {
 			if i == 0 {
 				domErr = e
@@ -72,9 +72,16 @@ func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib app.Requir
 		return ErrIncreaseBalanceFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(ib))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(&ib))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrIncreaseBalanceSavingFailed, saveErr)
 	}
 	return nil
 }
+
+// compile time assertions
+var (
+	_ app.RequiresCommandHandler = (*domain.IncreaseBalance)(nil)
+	_ app.RequiresErrorKeeper    = (*domain.IncreaseBalance)(nil)
+	_ app.OffersFactKeeper       = (*domain.IncreaseBalance)(nil)
+)

@@ -20,11 +20,13 @@ type Adapters struct {
 
 // Objects are represented by application level or domain interfaces
 type Objects struct {
-	Target               QualId // target represents a distinguishable entity
-	Entity               QualId // entity represents a non-distinguishable concrete entity
-	Actor                QualId // actor represents the caller of a command
-	FactKeeper           QualId // fact keeper keeps domain facts
-	DomainCommandHandler QualId // domain command handler handles domain commands, keeps errors and - if configured - facts
+	Target         QualId // target represents a distinguishable entity
+	Entity         QualId // entity represents a non-distinguishable concrete entity
+	Actor          QualId // actor represents the caller of a command
+	CommandHandler QualId // command handler handles domain commands
+	ErrorKeeper    QualId // error keeper keeps domain errors
+	FactKeeper     QualId // fact keeper keeps domain facts
+	Domain         QualId // a qual only referncinf the domain import path
 
 }
 

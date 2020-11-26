@@ -22,11 +22,10 @@ const (
 	StorageSaveMethod      = "Save"
 	StorageSaveFactsMethod = "SaveFacts"
 
-	CommandHandler       = "commandHandler"
+	CommandHandler       = "RequiresCommandHandler"
 	CommandHandlerMethod = "Handle"
-	ErrorKeeper          = "errorKeeper"
+	ErrorKeeper          = "RequiresErrorKeeper"
 	ErrorKeeperMethod    = "Errors"
 	FactKeeper           = "OffersFactKeeper"
 	FactKeeperMethod     = "Facts"
-	DomainCommandHandler = "RequiresDomainCommandHandler"
 )

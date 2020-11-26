@@ -7,6 +7,7 @@ import (
 	errwrap "github.com/hashicorp/errwrap"
 	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	domain "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
 	"reflect"
 )
 
@@ -43,7 +44,7 @@ func NewBlockAccountHandlerWrapper(rw app.RequiresStorageWriterReader, p app.Req
 }
 
 // Handle generically performs BlockAccount
-func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba domain.BlockAccount, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrBlockAccountHasNoTarget
@@ -61,7 +62,6 @@ func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba app.RequiresD
 	// assert correct command handling by the domain
 	if ok := ba.Handle(ctx, a); !ok {
 		var domErr error
-		// ba is an ErrorKeeper
 		for i, e := range ba.Errors() {
 			if i == 0 {
 				domErr = e
@@ -72,9 +72,16 @@ func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba app.RequiresD
 		return ErrBlockAccountFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(ba))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(&ba))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrBlockAccountSavingFailed, saveErr)
 	}
 	return nil
 }
+
+// compile time assertions
+var (
+	_ app.RequiresCommandHandler = (*domain.BlockAccount)(nil)
+	_ app.RequiresErrorKeeper    = (*domain.BlockAccount)(nil)
+	_ app.OffersFactKeeper       = (*domain.BlockAccount)(nil)
+)

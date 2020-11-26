@@ -7,6 +7,7 @@ import (
 	errwrap "github.com/hashicorp/errwrap"
 	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
+	domain "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
 	"reflect"
 )
 
@@ -43,7 +44,7 @@ func NewMakeNewAccountWithOutIdHandlerWrapper(rw app.RequiresStorageWriterReader
 }
 
 // Handle generically performs MakeNewAccountWithOutId
-func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi domain.MakeNewAccountWithOutId, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrMakeNewAccountWithOutIdHasNoTarget
@@ -61,7 +62,6 @@ func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawo
 	// assert correct command handling by the domain
 	if ok := mnawoi.Handle(ctx, a); !ok {
 		var domErr error
-		// mnawoi is an ErrorKeeper
 		for i, e := range mnawoi.Errors() {
 			if i == 0 {
 				domErr = e
@@ -72,9 +72,16 @@ func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawo
 		return ErrMakeNewAccountWithOutIdFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(mnawoi))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(&mnawoi))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrMakeNewAccountWithOutIdSavingFailed, saveErr)
 	}
 	return nil
 }
+
+// compile time assertions
+var (
+	_ app.RequiresCommandHandler = (*domain.MakeNewAccountWithOutId)(nil)
+	_ app.RequiresErrorKeeper    = (*domain.MakeNewAccountWithOutId)(nil)
+	_ app.OffersFactKeeper       = (*domain.MakeNewAccountWithOutId)(nil)
+)

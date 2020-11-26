@@ -127,7 +127,7 @@ func GenIfacePolicer(entity QualId, pkgName string) (f *File, typIdent string) {
 	return f, Policer
 }
 
-func genIfaceCommandHandler(f *File, entity QualId) {
+func genIfaceCommandHandler(f *File, entity QualId) (typIdent string) {
 	entityShort := cmdShortForm(entity.Id)
 	f.Commentf("%s handles a command in the domain", CommandHandler)
 	f.Type().Id(
@@ -141,14 +141,15 @@ func genIfaceCommandHandler(f *File, entity QualId) {
 		).Params(
 			Id("ctx").Qual("context", "Context"),
 			Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
-			Id("ifaces").Op("...").Interface(),
+			// Id("ifaces").Op("...").Interface(),
 		).Params(
 			Id("bool"),
 		),
 	)
+	return CommandHandler
 }
 
-func genIfaceErrorKeeper(f *File) {
+func genIfaceErrorKeeper(f *File) (typIdent string) {
 	f.Commentf("%s keeps domain errors", ErrorKeeper)
 	f.Type().Id(
 		ErrorKeeper,
@@ -162,9 +163,10 @@ func genIfaceErrorKeeper(f *File) {
 			Index().Id("error"),
 		),
 	)
+	return ErrorKeeper
 }
 
-func genIfaceFactKeeper(f *File) {
+func genIfaceFactKeeper(f *File) (typIdent string) {
 	f.Commentf("%s keeps domain facts", FactKeeper)
 	f.Type().Id(
 		FactKeeper,
@@ -178,46 +180,7 @@ func genIfaceFactKeeper(f *File) {
 			Index().Interface(),
 		),
 	)
-}
-
-func genIfaceDomainCommandHandler(f *File, entity QualId) (typIdent string) {
-	genIfaceCommandHandler(f, entity)
-	genIfaceErrorKeeper(f)
-	f.Commentf("%s handles a command in the domain and keeps domain errors", DomainCommandHandler)
-	f.Comment("application requires domain to implement this interface.")
-	f.Type().Id(
-		DomainCommandHandler,
-	).Interface(
-		Id(
-			CommandHandler,
-		),
-		Id(
-			ErrorKeeper,
-		),
-	)
-	return DomainCommandHandler
-}
-
-func genIfaceDomainCommandHandlerWithFacts(f *File, entity QualId) (typIdent string) {
-	genIfaceCommandHandler(f, entity)
-	genIfaceErrorKeeper(f)
-	genIfaceFactKeeper(f)
-	f.Commentf("%s handles a command in the domain and keeps domain errors & facts", DomainCommandHandler)
-	f.Comment("application requires domain to implement this interface.")
-	f.Type().Id(
-		DomainCommandHandler,
-	).Interface(
-		Id(
-			CommandHandler,
-		),
-		Id(
-			ErrorKeeper,
-		),
-		Id(
-			FactKeeper,
-		),
-	)
-	return DomainCommandHandler
+	return FactKeeper
 }
 
 func GenIfaceDistinguishableAsserter(pkgName string) (f *File, typIdent string) {
@@ -244,14 +207,15 @@ func GenStorageIface(entity QualId, useFactStorage bool, pkgName string) (f *Fil
 	return ret, storageReader, storageReaderWriter
 }
 
-func GenCmdHandlerIface(entity QualId, useFactStorage bool, pkgName string) (f *File, cmd, fk string) {
+func GenCmdHandlerIface(entity QualId, useFactStorage bool, pkgName string) (f *File, cmd, ek, fk string) {
 	ret := NewFile(pkgName)
+	cmd = genIfaceCommandHandler(ret, entity)
+	ek = genIfaceErrorKeeper(ret)
 	if useFactStorage {
-		cmd = genIfaceDomainCommandHandlerWithFacts(ret, entity)
-		return ret, cmd, FactKeeper
+		fk = genIfaceFactKeeper(ret)
+		return ret, cmd, ek, fk
 	}
-	cmd = genIfaceDomainCommandHandler(ret, entity)
-	return ret, cmd, ""
+	return ret, cmd, ek, ""
 }
 
 // Offered interfaces ...

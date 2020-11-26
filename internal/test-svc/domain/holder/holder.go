@@ -29,3 +29,9 @@ func (h Holder) validate() error {
 	}
 	return nil
 }
+
+// Apply applies facts to Holder
+// implements application layer's entity interface.
+func (h *Holder) Apply(fact interface{}) {
+	// TODO: ipmlement
+}

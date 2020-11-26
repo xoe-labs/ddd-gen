@@ -5,14 +5,14 @@ import (
 	account "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/Account"
 )
 
-// commandHandler handles a command in the domain
-type commandHandler interface {
+// RequiresCommandHandler handles a command in the domain
+type RequiresCommandHandler interface {
 	// Handle handles the command on Account entity
-	Handle(ctx context.Context, a *account.Account, ifaces ...interface{}) bool
+	Handle(ctx context.Context, a *account.Account) bool
 }
 
-// errorKeeper keeps domain errors
-type errorKeeper interface {
+// RequiresErrorKeeper keeps domain errors
+type RequiresErrorKeeper interface {
 	// Errors knows how to return collected domain errors
 	Errors() []error
 }
@@ -21,12 +21,4 @@ type errorKeeper interface {
 type OffersFactKeeper interface {
 	// Facts knows how to return domain facts
 	Facts() []interface{}
-}
-
-// RequiresDomainCommandHandler handles a command in the domain and keeps domain errors & facts
-// application requires domain to implement this interface.
-type RequiresDomainCommandHandler interface {
-	commandHandler
-	errorKeeper
-	OffersFactKeeper
 }

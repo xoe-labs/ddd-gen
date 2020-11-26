@@ -122,6 +122,10 @@ func generateEntityHelperMethods(f *jen.File, typ, validatorMethod string, typSt
 	return nil
 }
 
+func generateEntityApplyStub(g *jen.Group, typ string) {
+	_ = generator.GenApplyStub(g, typ)
+}
+
 func isPointer(s string) bool {
 	return strings.HasPrefix(s, "*")
 }

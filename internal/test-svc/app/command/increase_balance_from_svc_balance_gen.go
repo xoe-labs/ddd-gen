@@ -8,6 +8,7 @@ import (
 	app "github.com/xoe-labs/ddd-gen/internal/test-svc/app"
 	errors "github.com/xoe-labs/ddd-gen/internal/test-svc/app/errors"
 	ifaces "github.com/xoe-labs/ddd-gen/internal/test-svc/app/ifaces"
+	domain "github.com/xoe-labs/ddd-gen/internal/test-svc/domain"
 	"reflect"
 )
 
@@ -48,7 +49,7 @@ func NewIncreaseBalanceFromSvcHandlerWrapper(svc ifaces.Balancer, rw app.Require
 }
 
 // Handle generically performs IncreaseBalanceFromSvc
-func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs app.RequiresDomainCommandHandler, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs domain.IncreaseBalanceFromSvc, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrIncreaseBalanceFromSvcHasNoTarget
@@ -66,7 +67,6 @@ func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs a
 	// assert correct command handling by the domain
 	if ok := ibfs.Handle(ctx, a, &h.svc); !ok {
 		var domErr error
-		// ibfs is an ErrorKeeper
 		for i, e := range ibfs.Errors() {
 			if i == 0 {
 				domErr = e
@@ -77,9 +77,16 @@ func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs a
 		return ErrIncreaseBalanceFromSvcFailedInDomain
 	}
 	// save domain facts to storage
-	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(ibfs))
+	saveErr := h.rw.SaveFacts(ctx, target, app.OffersFactKeeper(&ibfs))
 	if saveErr != nil {
 		return errwrap.Wrap(ErrIncreaseBalanceFromSvcSavingFailed, saveErr)
 	}
 	return nil
 }
+
+// compile time assertions
+var (
+	_ app.RequiresCommandHandler = (*domain.IncreaseBalanceFromSvc)(nil)
+	_ app.RequiresErrorKeeper    = (*domain.IncreaseBalanceFromSvc)(nil)
+	_ app.OffersFactKeeper       = (*domain.IncreaseBalanceFromSvc)(nil)
+)

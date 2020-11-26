@@ -95,19 +95,24 @@ func generateIfaces(genPath string, useFactStorage bool, objects *generator.Obje
 			return err
 		}
 	}
-	gcf, cmd, fk := generator.GenCmdHandlerIface(objects.Entity, useFactStorage, pkgName)
+
+	gcf, cmd, ek, fk := generator.GenCmdHandlerIface(objects.Entity, useFactStorage, pkgName)
 	if err := gcf.Save(commandFile); err != nil {
 		return err
+	}
+	objects.CommandHandler = generator.QualId{
+		Qual: pkgPath,
+		Id:   cmd,
+	}
+	objects.ErrorKeeper = generator.QualId{
+		Qual: pkgPath,
+		Id:   ek,
 	}
 	if useFactStorage {
 		objects.FactKeeper = generator.QualId{
 			Qual: pkgPath,
 			Id:   fk,
 		}
-	}
-	objects.DomainCommandHandler = generator.QualId{
-		Qual: pkgPath,
-		Id:   cmd,
 	}
 
 	// identity related interfaces

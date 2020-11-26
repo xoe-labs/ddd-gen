@@ -52,7 +52,11 @@ func analyzeStructAndGenerateCommandWrappers(genPath, sourceTypeName string, use
 	log.Printf("\t%s\n", objects.Target)
 	log.Printf("\t%s\n", objects.Entity)
 	log.Printf("\t%s\n", objects.Actor)
-	log.Printf("\t%s\n", objects.DomainCommandHandler)
+	log.Printf("\t%s\n", objects.CommandHandler)
+	log.Printf("\t%s\n", objects.ErrorKeeper)
+	if useFactStorage {
+		log.Printf("\t%s\n", objects.FactKeeper)
+	}
 	log.Println("  using adapter interfaces ...")
 	// log.Printf("\t%s\n", adapters.StorageR)
 	log.Printf("\t%s\n", adapters.StorageRW)

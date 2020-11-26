@@ -15,3 +15,9 @@ type Account struct {
 	values      []int64 `entity:"private"`
 }
 
+
+// Apply applies facts to Account
+// implements application layer's entity interface.
+func (a *Account) Apply(fact interface{}) {
+	// TODO: ipmlement
+}
