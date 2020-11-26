@@ -44,7 +44,7 @@ func NewMakeNewAccountWithOutIdHandlerWrapper(rw app.RequiresStorageWriterReader
 }
 
 // Handle generically performs MakeNewAccountWithOutId
-func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi domain.MakeNewAccountWithOutId, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h MakeNewAccountWithOutIdHandlerWrapper) Handle(ctx context.Context, mnawoi domain.MakeNewAccountWithOutId, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrMakeNewAccountWithOutIdHasNoTarget

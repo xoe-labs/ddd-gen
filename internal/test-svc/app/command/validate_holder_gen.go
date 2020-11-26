@@ -38,7 +38,7 @@ func NewValidateHolderHandlerWrapper(rw app.RequiresStorageWriterReader) *Valida
 }
 
 // Handle generically performs ValidateHolder
-func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh domain.ValidateHolder, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h ValidateHolderHandlerWrapper) Handle(ctx context.Context, vh domain.ValidateHolder, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrValidateHolderHasNoTarget

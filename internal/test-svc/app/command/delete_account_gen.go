@@ -44,7 +44,7 @@ func NewDeleteAccountHandlerWrapper(rw app.RequiresStorageWriterReader, p app.Re
 }
 
 // Handle generically performs DeleteAccount
-func (h DeleteAccountHandlerWrapper) Handle(ctx context.Context, da domain.DeleteAccount, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h DeleteAccountHandlerWrapper) Handle(ctx context.Context, da domain.DeleteAccount, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrDeleteAccountHasNoTarget

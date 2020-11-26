@@ -44,7 +44,7 @@ func NewIncreaseBalanceHandlerWrapper(rw app.RequiresStorageWriterReader, p app.
 }
 
 // Handle generically performs IncreaseBalance
-func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib domain.IncreaseBalance, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h IncreaseBalanceHandlerWrapper) Handle(ctx context.Context, ib domain.IncreaseBalance, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrIncreaseBalanceHasNoTarget

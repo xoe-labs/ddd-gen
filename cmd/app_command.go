@@ -65,8 +65,8 @@ var appCommandCmd = &cobra.Command{
     ├── domain.go                   // generated domain interface
     ├── identiy.go                  // generated identity assertion interface
     ├── distinguishable.go          // generated stub of distinguishable interface (edit & implement!)
-    ├── policeable.go               // generated stub of policeable interface (edit & implement!)
-    ├── policeable
+    ├── authorizable.go             // generated stub of authorizable interface (edit & implement!)
+    ├── authorizable
     │   └── actor.go                // implement your actor here
     ├── distinguishable
     │   └── target.go               // implement your target here

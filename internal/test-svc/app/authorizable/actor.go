@@ -1,4 +1,4 @@
-package policeable
+package authorizable
 
 import (
 	"github.com/xoe-labs/ddd-gen/internal/test-svc/app"
@@ -19,5 +19,5 @@ func (a *Actor) ElevationToken() string {
 }
 
 var (
-	_ app.OffersPoliceable = (*Actor)(nil)
+	_ app.OffersAuthorizable = (*Actor)(nil)
 )

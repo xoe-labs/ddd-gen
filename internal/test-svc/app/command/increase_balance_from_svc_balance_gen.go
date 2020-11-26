@@ -49,7 +49,7 @@ func NewIncreaseBalanceFromSvcHandlerWrapper(svc ifaces.Balancer, rw app.Require
 }
 
 // Handle generically performs IncreaseBalanceFromSvc
-func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs domain.IncreaseBalanceFromSvc, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h IncreaseBalanceFromSvcHandlerWrapper) Handle(ctx context.Context, ibfs domain.IncreaseBalanceFromSvc, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrIncreaseBalanceFromSvcHasNoTarget

@@ -12,7 +12,7 @@ const (
 	DistinguishableMethod                = "Identifier"
 	DistinguishableAsserterMethod        = "IsDistinguishable"
 
-	Policeable    = "OffersPoliceable"
+	Authorizable    = "OffersAuthorizable"
 	Policer       = "RequiresPolicer"
 	PolicerMethod = "Can"
 

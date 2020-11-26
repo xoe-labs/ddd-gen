@@ -44,7 +44,7 @@ func NewBlockAccountHandlerWrapper(rw app.RequiresStorageWriterReader, p app.Req
 }
 
 // Handle generically performs BlockAccount
-func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba domain.BlockAccount, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h BlockAccountHandlerWrapper) Handle(ctx context.Context, ba domain.BlockAccount, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrBlockAccountHasNoTarget

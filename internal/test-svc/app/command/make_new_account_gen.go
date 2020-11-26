@@ -44,7 +44,7 @@ func NewMakeNewAccountHandlerWrapper(rw app.RequiresStorageWriterReader, p app.R
 }
 
 // Handle generically performs MakeNewAccount
-func (h MakeNewAccountHandlerWrapper) Handle(ctx context.Context, mna domain.MakeNewAccount, actor app.OffersPoliceable, target app.OffersDistinguishable) error {
+func (h MakeNewAccountHandlerWrapper) Handle(ctx context.Context, mna domain.MakeNewAccount, actor app.OffersAuthorizable, target app.OffersDistinguishable) error {
 	// assert that target is distinguishable
 	if !target.IsDistinguishable() {
 		return ErrMakeNewAccountHasNoTarget

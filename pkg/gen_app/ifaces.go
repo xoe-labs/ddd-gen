@@ -143,15 +143,15 @@ func generateIfaces(genPath string, useFactStorage bool, objects *generator.Obje
 		Id:   disTyp,
 	}
 
-	// policeable related interfaces
-	policeableFile := path.Join(genPath, "policeable.go")
-	if fileExists(policeableFile) {
-		if err := os.Remove(policeableFile); err != nil {
+	// authorizable related interfaces
+	authorizableFile := path.Join(genPath, "authorizable.go")
+	if fileExists(authorizableFile) {
+		if err := os.Remove(authorizableFile); err != nil {
 			return err
 		}
 	}
-	gpf, polTyp := generator.GenIfacePoliceable(pkgName)
-	if err := gpf.Save(policeableFile); err != nil {
+	gpf, polTyp := generator.GenIfaceAuthorizable(pkgName)
+	if err := gpf.Save(authorizableFile); err != nil {
 		return err
 	}
 	objects.Actor = generator.QualId{

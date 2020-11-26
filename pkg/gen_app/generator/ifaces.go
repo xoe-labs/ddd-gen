@@ -116,7 +116,7 @@ func GenIfacePolicer(entity QualId, pkgName string) (f *File, typIdent string) {
 		Id("Can").Params(
 			Id("ctx").Qual("context", "Context"),
 			Id("p").Id(
-				Policeable,
+				Authorizable,
 			),
 			Id("action").Id("string"),
 			Id(entityShort).Op("*").Qual(entity.Qual, entity.Id),
@@ -240,13 +240,13 @@ func GenIfaceDistinguishable(pkgName string) (f *File, typIdent string) {
 	return f, Distinguishable
 }
 
-func GenIfacePoliceable(pkgName string) (f *File, typIdent string) {
+func GenIfaceAuthorizable(pkgName string) (f *File, typIdent string) {
 	f = NewFile(pkgName)
-	f.Commentf("%s is an actor that can be policed", Policeable)
-	f.Commentf("application implements %s and thereby offers policy adapter and external consumers a common language to reason about a policeable actor", Policeable)
-	f.Commentf("TODO: implement %s", Policeable)
+	f.Commentf("%s is an actor that can be policed", Authorizable)
+	f.Commentf("application implements %s and thereby offers policy adapter and external consumers a common language to reason about a authorizable actor", Authorizable)
+	f.Commentf("TODO: implement %s", Authorizable)
 	f.Type().Id(
-		Policeable,
+		Authorizable,
 	).Interface(
 		Comment("TODO: adapt to your needs"),
 		Line(),
@@ -261,5 +261,5 @@ func GenIfacePoliceable(pkgName string) (f *File, typIdent string) {
 			Id("string"),
 		),
 	)
-	return f, Policeable
+	return f, Authorizable
 }

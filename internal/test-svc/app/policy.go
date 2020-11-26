@@ -8,5 +8,5 @@ import (
 // RequiresPolicer knows to make decisions on access policy
 // application requires policy adapter to implement this interface.
 type RequiresPolicer interface {
-	Can(ctx context.Context, p OffersPoliceable, action string, a *account.Account) bool
+	Can(ctx context.Context, p OffersAuthorizable, action string, a *account.Account) bool
 }
