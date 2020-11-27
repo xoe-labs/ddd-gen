@@ -1,8 +1,8 @@
 package holder
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 type HolderType struct{ s string }
@@ -14,18 +14,17 @@ var (
 	Remote = HolderType{"remote"}
 )
 
-
 //go:generate go run ../../../../main.go --config ../../ddd-config.yaml domain entity -t Holder -v validate
 type Holder struct {
-	uuid string     `entity:"required,field uuid is empty;equal,reflect"`
-	name string     `entity:"required,field name is empty;stringer"`
-	bday time.Time
-	hTyp HolderType `entity:"required,filed folder type is empty"`
+	name    string     `entity:"required,field name is empty;stringer"`
+	altname string     ``
+	bday    time.Time  ``
+	hTyp    HolderType `entity:"required,filed folder type is empty"`
 }
 
 func (h Holder) validate() error {
-	if h.uuid == h.name {
-		return fmt.Errorf("uuid equals name")
+	if h.altname == h.name {
+		return fmt.Errorf("altname equals name")
 	}
 	return nil
 }

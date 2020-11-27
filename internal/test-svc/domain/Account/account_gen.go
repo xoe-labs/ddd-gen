@@ -4,6 +4,7 @@ package account
 import (
 	"errors"
 	"fmt"
+	distinguishable "github.com/xoe-labs/ddd-gen/internal/test-svc/app/distinguishable"
 	holder "github.com/xoe-labs/ddd-gen/internal/test-svc/domain/holder"
 	"reflect"
 )
@@ -11,10 +12,7 @@ import (
 // Constructors ...
 
 // New returns a guaranteed-to-be-valid Account or an error
-func New(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string) (*Account, error) {
-	if reflect.ValueOf(uuid).IsZero() {
-		return nil, errors.New("field uuid is empty")
-	}
+func New(holder holder.Holder, altHolders map[distinguishable.Target]holder.Holder, holderRoles map[holder.Holder]string, address string) (*Account, error) {
 	if reflect.ValueOf(holder).IsZero() {
 		return nil, errors.New("field holder is empty")
 	}
@@ -29,14 +27,13 @@ func New(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRo
 		altHolders:  altHolders,
 		holder:      holder,
 		holderRoles: holderRoles,
-		uuid:        uuid,
 	}
 	return a, nil
 }
 
 // MustNew returns a guaranteed-to-be-valid Account or panics
-func MustNew(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string) *Account {
-	a, err := New(uuid, holder, altHolders, holderRoles, address)
+func MustNew(holder holder.Holder, altHolders map[distinguishable.Target]holder.Holder, holderRoles map[holder.Holder]string, address string) *Account {
+	a, err := New(holder, altHolders, holderRoles, address)
 	if err != nil {
 		panic(err)
 	}
@@ -50,10 +47,17 @@ func MustNew(uuid string, holder holder.Holder, altHolders []holder.Holder, hold
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromStore(uuid string, holder holder.Holder, altHolders []holder.Holder, holderRoles map[holder.Holder]string, address string, balance int64, values []int64) *Account {
-	a := MustNew(uuid, holder, altHolders, holderRoles, address)
+func UnmarshalFromStore(holder holder.Holder, altHolders map[distinguishable.Target]holder.Holder, holderRoles map[holder.Holder]string, address string, balance int64, movements []int64, blocked bool, blockReason bool, unblockReason bool, archived bool, archivedReason bool, validHolder bool, validatedBy string) *Account {
+	a := MustNew(holder, altHolders, holderRoles, address)
 	a.balance = balance
-	a.values = values
+	a.movements = movements
+	a.blocked = blocked
+	a.blockReason = blockReason
+	a.unblockReason = unblockReason
+	a.archived = archived
+	a.archivedReason = archivedReason
+	a.validHolder = validHolder
+	a.validatedBy = validatedBy
 	return a
 }
 
@@ -65,7 +69,7 @@ func (a *Account) Holder() holder.Holder {
 }
 
 // SetAltHolders sets altHolders value
-func (a *Account) SetAltHolders(altHolders []holder.Holder) {
+func (a *Account) SetAltHolders(altHolders map[distinguishable.Target]holder.Holder) {
 	a.altHolders = altHolders
 }
 
@@ -78,13 +82,10 @@ func (a Account) Equal(v interface{}) bool {
 	if !ok {
 		return false
 	}
-	if a.uuid != other.uuid {
-		return false
-	}
 	return true
 }
 
 // String implements the fmt.Stringer interface and returns the native format of Account
 func (a Account) String() string {
-	return fmt.Sprintf("%s ", a.uuid)
+	return fmt.Sprintf("")
 }

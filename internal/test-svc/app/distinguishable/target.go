@@ -3,8 +3,6 @@ package distinguishable
 import (
 	"fmt"
 
-	"github.com/xoe-labs/ddd-gen/internal/test-svc/app"
-
 	"github.com/satori/go.uuid"
 )
 
@@ -30,7 +28,3 @@ func (t *Target) IsDistinguishable() bool {
 	return t.Office != "" && t.Id != uuid.Nil
 }
 
-var (
-	_ app.RequiresDistinguishableAsserter = (*Target)(nil)
-	_ app.OffersDistinguishable = (*Target)(nil)
-)

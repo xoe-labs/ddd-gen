@@ -11,10 +11,7 @@ import (
 // Constructors ...
 
 // New returns a guaranteed-to-be-valid Holder or an error
-func New(uuid string, name string, bday time.Time, hTyp HolderType) (*Holder, error) {
-	if reflect.ValueOf(uuid).IsZero() {
-		return nil, errors.New("field uuid is empty")
-	}
+func New(name string, altname string, bday time.Time, hTyp HolderType) (*Holder, error) {
 	if reflect.ValueOf(name).IsZero() {
 		return nil, errors.New("field name is empty")
 	}
@@ -22,10 +19,10 @@ func New(uuid string, name string, bday time.Time, hTyp HolderType) (*Holder, er
 		return nil, errors.New("filed folder type is empty")
 	}
 	h := &Holder{
-		bday: bday,
-		hTyp: hTyp,
-		name: name,
-		uuid: uuid,
+		altname: altname,
+		bday:    bday,
+		hTyp:    hTyp,
+		name:    name,
 	}
 	if err := h.validate(); err != nil {
 		return nil, err
@@ -34,8 +31,8 @@ func New(uuid string, name string, bday time.Time, hTyp HolderType) (*Holder, er
 }
 
 // MustNew returns a guaranteed-to-be-valid Holder or panics
-func MustNew(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
-	h, err := New(uuid, name, bday, hTyp)
+func MustNew(name string, altname string, bday time.Time, hTyp HolderType) *Holder {
+	h, err := New(name, altname, bday, hTyp)
 	if err != nil {
 		panic(err)
 	}
@@ -49,8 +46,8 @@ func MustNew(uuid string, name string, bday time.Time, hTyp HolderType) *Holder 
 //
 // Important: DO NEVER USE THIS METHOD EXCEPT FROM THE REPOSITORY
 // Reason: This method initializes private state, so you could corrupt the domain.
-func UnmarshalFromStore(uuid string, name string, bday time.Time, hTyp HolderType) *Holder {
-	h := MustNew(uuid, name, bday, hTyp)
+func UnmarshalFromStore(name string, altname string, bday time.Time, hTyp HolderType) *Holder {
+	h := MustNew(name, altname, bday, hTyp)
 	return h
 }
 
@@ -63,9 +60,6 @@ func UnmarshalFromStore(uuid string, name string, bday time.Time, hTyp HolderTyp
 func (h Holder) Equal(v interface{}) bool {
 	other, ok := v.(Holder)
 	if !ok {
-		return false
-	}
-	if !reflect.DeepEqual(h.uuid, other.uuid) {
 		return false
 	}
 	return true
