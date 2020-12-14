@@ -1,0 +1,12 @@
+syntax = "proto3";
+package app;
+
+option go_package = "github.com/xoe-labs/ddd-gen/internal/test-svc/app/distinguishable";
+
+
+message Target {
+	string id = 1; // UUID
+	string office = 2;
+	string zone = 3;
+	string continent = 4;
+}

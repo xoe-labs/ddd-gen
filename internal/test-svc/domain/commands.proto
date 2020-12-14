@@ -1,0 +1,67 @@
+syntax = "proto3";
+package domain.commands;
+
+option go_package = "github.com/xoe-labs/ddd-gen/internal/test-svc/domain";
+
+import "google/protobuf/timestamp.proto";
+
+message CreateHolder {
+  enum HolderType {
+    LOCAL = 0;
+    REMOTE = 1;
+  }
+  string name = 1;
+  string altname = 2;
+  HolderType h_typ = 3;
+  google.protobuf.Timestamp bday = 16;
+}
+
+// MakeNewAccount creates a new account
+// Business Logic Wrap-Up:
+// ...
+message MakeNewAccount {
+  CreateHolder holder = 1;
+  map<string, CreateHolder> alt_holders = 2;
+  map<string, string> holder_roles = 3;
+  string address = 4;
+}
+
+// MakeNewAccountQuick creates a new account without holder roles or alt holders
+// Business Logic Wrap-Up:
+// ...
+message MakeNewAccountQuick {
+  CreateHolder holder = 1;
+  string address = 4;
+}
+
+// ArchiveAccount archives an account
+// Business Logic Wrap-Up:
+// ...
+message ArchiveAccount {
+  string archive_reason = 1;
+}
+
+// BlockAccount blocks an account
+// Business Logic Wrap-Up:
+// ...
+message BlockAccount {
+  string block_reason = 1;
+}
+
+// ValidateAccountHolder validates an account holder
+// Business Logic Wrap-Up:
+// ...
+message ValidateAccountHolder {
+  string validated_by = 1;
+}
+
+// ModifyBalance modifies the account balance
+// Business Logic Wrap-Up:
+// ...
+message ModifyBalance {
+  repeated int64 movements = 1;
+}
+
+message ModifyBalanceFromSvc {
+}
+

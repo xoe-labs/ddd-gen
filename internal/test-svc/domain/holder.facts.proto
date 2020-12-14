@@ -1,0 +1,18 @@
+syntax = "proto3";
+package domain.facts;
+
+option go_package = "github.com/xoe-labs/ddd-gen/internal/test-svc/domain";
+
+import "google/protobuf/timestamp.proto";
+
+message HolderCreated {
+  enum HolderType {
+    LOCAL = 0;
+    REMOTE = 1;
+  }
+  string name = 1;
+  string altname = 2;
+  HolderType h_typ = 3;
+  google.protobuf.Timestamp bday = 16;
+}
+

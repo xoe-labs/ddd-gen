@@ -1,0 +1,10 @@
+syntax = "proto3";
+package app;
+
+option go_package = "github.com/xoe-labs/ddd-gen/internal/test-svc/app/authorizable";
+
+
+message Actor {
+	string user = 1;
+	string elevation_token = 2;
+}

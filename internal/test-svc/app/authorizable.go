@@ -6,6 +6,6 @@ package app
 type OffersAuthorizable interface {
 	// TODO: adapt to your needs
 
-	User() string
-	ElevationToken() string
+	GetUser() string
+	GetElevationToken() string
 }

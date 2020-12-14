@@ -1,0 +1,23 @@
+gen: gen-facts gen-commands
+
+gen-facts: gen-facts-account gen-facts-holder
+
+gen-facts-account:
+	protoc \
+	account.facts.proto \
+	--go_out=. --ddd_out=entity=Account:. \
+	--ddd_opt=paths=source_relative \
+	--go_opt=paths=source_relative
+
+gen-facts-holder:
+	protoc \
+	holder.facts.proto \
+	--go_out=. --ddd_out=entity=Holder:. \
+	--ddd_opt=paths=source_relative \
+	--go_opt=paths=source_relative
+
+gen-commands:
+	protoc \
+	commands.proto \
+	--go_out=. \
+	--go_opt=paths=source_relative
